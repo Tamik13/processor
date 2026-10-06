@@ -1,0 +1,21 @@
+
+FUNCTION: log_print DATE:Tue Oct  6 18:22:43 2026
+stack push
+
+FUNCTION: log_print_error DATE:Tue Oct  6 18:22:43 2026
+processor_add: ERROR stack->size < 2
+ERROR error_code: INCORRECT SIZE: 1 errno_code: Undefined error: 0
+
+FUNCTION: log_dump_stack DATE:Tue Oct  6 18:22:43 2026
+ REASON: {
+	size     = 1
+	capacity = 5
+	data[0x11d605e10]
+	{
+		*[0] = 20
+		 [1] = 41e755be01a00000 (POISON!!!) 
+		 [2] = 41e755be01a00000 (POISON!!!) 
+		 [3] = 41e755be01a00000 (POISON!!!) 
+		 [4] = 41e755be01a00000 (POISON!!!) 
+	}
+}
