@@ -1,21 +1,41 @@
 
-FUNCTION: log_print DATE:Tue Oct  6 18:22:43 2026
-stack push
-
-FUNCTION: log_print_error DATE:Tue Oct  6 18:22:43 2026
-processor_add: ERROR stack->size < 2
-ERROR error_code: INCORRECT SIZE: 1 errno_code: Undefined error: 0
-
-FUNCTION: log_dump_stack DATE:Tue Oct  6 18:22:43 2026
- REASON: {
-	size     = 1
+FUNCTION: log_dump_stack DATE:Wed Oct  7 23:33:32 2026
+ REASON: stack_s "stack"[0x16af3b018] created by processor_start() at /Users/tamerlannagaev/prodva/PROCESSOR/src/processor.cpp:108
+{
+	size     = 0
 	capacity = 5
-	data[0x11d605e10]
+	hash     = 5214336714950568774
+	canary_data[0x12ee06000]
 	{
-		*[0] = 20
-		 [1] = 41e755be01a00000 (POISON!!!) 
-		 [2] = 41e755be01a00000 (POISON!!!) 
-		 [3] = 41e755be01a00000 (POISON!!!) 
-		 [4] = 41e755be01a00000 (POISON!!!) 
+		 [0] = deadbabe (CANARY!!!)
+		 [1] = baadf00d (POISON!!!) 
+		 [2] = baadf00d (POISON!!!) 
+		 [3] = baadf00d (POISON!!!) 
+		 [4] = baadf00d (POISON!!!) 
+		 [5] = baadf00d (POISON!!!) 
+		 [6] = badcafe (CANARY!!!)
+	}
+	data[0x12ee06008]
+	{
+		 [0] = baadf00d (POISON!!!) 
+		 [1] = baadf00d (POISON!!!) 
+		 [2] = baadf00d (POISON!!!) 
+		 [3] = baadf00d (POISON!!!) 
+		 [4] = baadf00d (POISON!!!) 
 	}
 }
+
+FUNCTION: log_print DATE:Wed Oct  7 23:33:38 2026
+stack push
+
+FUNCTION: log_print DATE:Wed Oct  7 23:33:41 2026
+stack push
+
+FUNCTION: log_print DATE:Wed Oct  7 23:33:47 2026
+stack pop
+
+FUNCTION: log_print DATE:Wed Oct  7 23:33:47 2026
+stack pop
+
+FUNCTION: log_print DATE:Wed Oct  7 23:33:47 2026
+stack push

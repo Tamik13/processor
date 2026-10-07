@@ -172,18 +172,21 @@ const char* my_str_error(const error_code_e error_code) {
         case SEG_FAULT:
             return "SEG FAULT: 13";
 
+        case ERROR_DURING_READ:
+            return "ERROR_DURING_READ: 14";
+
         case INIT_VALUE:
             return "INIT VALUE: -1";
 
         case UNEXPECTED_ERROR:
         default:
-            return "UNEXPECTED ERROR";
+            return "UNEXPECTED ERROR: -2";
     }
 }
 
 
 
-error_code_e is_readble_ptr(void* ptr) {
+error_code_e is_readble_ptr(const void* ptr) {
     int file_descriptor[2] = {0, 0};
 
 
@@ -237,4 +240,11 @@ error_code_e is_readble_ptr(void* ptr) {
     log_print_error(UNEXPECTED_ERROR, "is_readble_ptr: ERROR unexpected error\n");
     return UNEXPECTED_ERROR;
 }
+
+
+void $(int       num) {$int(num);}
+void $(double    num) {$double(num);}
+void $(size_t    num) {$size_t(num);}
+void $(long long num) {$llint(num);}
+void $(void**    num) {$ptr(num);}
 

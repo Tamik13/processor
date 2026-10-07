@@ -24,13 +24,13 @@ error_code_e stack_verify(stack_s* const stack) {
         return NULL_STACK;
     }
 
-    if (stack->left_canary != LEFT_CANARY) {
+    if ((unsigned long long)stack->left_canary != LEFT_CANARY) {
         log_print_error(CANARY_IS_DEAD, "stack_verify: ERROR first canary in struct IS DEAD(((\n");
         log_dump_stack(stack, "");
         return CANARY_IS_DEAD;
     }
 
-    if (stack->right_canary != RIGHT_CANARY) {
+    if ((unsigned long long)stack->right_canary != RIGHT_CANARY) {
         log_print_error(CANARY_IS_DEAD, "stack_verify: ERROR second canary in struct IS DEAD(((\n");
         log_dump_stack(stack, "");
         return CANARY_IS_DEAD;
@@ -43,13 +43,13 @@ error_code_e stack_verify(stack_s* const stack) {
         return SEG_FAULT;
     }
 
-    if (stack->canary_data[0] != LEFT_CANARY) {
+    if ((unsigned long long)stack->canary_data[0] != LEFT_CANARY) {
         log_print_error(CANARY_IS_DEAD, "stack_verify: ERROR first canary in data IS DEAD(((\n");
         log_dump_stack(stack, "");
         return CANARY_IS_DEAD;
     }
 
-    if (stack->data[stack->capacity] != RIGHT_CANARY) {
+    if ((unsigned long long)stack->data[stack->capacity] != RIGHT_CANARY) {
         log_print_error(CANARY_IS_DEAD, "stack_verify: ERROR second canary in data IS DEAD(((\n");
         log_dump_stack(stack, "");
         return CANARY_IS_DEAD;
@@ -108,7 +108,7 @@ error_code_e stack_init(stack_s* const stack, const size_t capacity ON_DBG(, con
         return REINITIALIZATION;
     }
 
-    stack->data = (stack_element*)calloc(capacity ON_DBG(+ COUNT_LEFT_CANARY * CANARY_SIZE), sizeof(stack_element));
+    stack->data = (stack_element*)calloc(capacity ON_DBG(+ COUNT_CANARY), sizeof(stack_element));
 
     if (stack->data == NULL) {
         log_print_error(ALLOCATION_ERROR, "stack_init: ERROR during allocation\n");
@@ -137,7 +137,7 @@ error_code_e stack_init(stack_s* const stack, const size_t capacity ON_DBG(, con
     stack->data[stack->capacity] = RIGHT_CANARY;
 
     stack->left_canary           = LEFT_CANARY;
-    stack->data[stack->capacity] = RIGHT_CANARY;
+    stack->right_canary          = RIGHT_CANARY;
 
     stack->struct_hash = 0;
     stack->struct_hash = djb2_hash((const unsigned char*)stack, sizeof(*stack));
@@ -332,8 +332,6 @@ error_code_e stack_recalloc(stack_s* const stack, const size_t new_capacity) {
     ON_DBG(
         stack->canary_data        = new_canary_data;
         stack->data               += COUNT_LEFT_CANARY * CANARY_SIZE;
-
-        $ANCHOR
         stack->canary_data[0]     = LEFT_CANARY;
         stack->data[new_capacity] = RIGHT_CANARY;
     )
@@ -472,7 +470,7 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
     fprintf(log_file,"\tcanary_data[%p]\n", stack->canary_data);
     fprintf(log_file, "\t{\n");
 
-    fprintf(log_file, "\t\t [%zu] = " POISON_MODIFIER " (CANARY!!!)\n", (size_t)0, stack->canary_data[0]); // ???(size_t)0 почему компилятор думает что 0 это int ???
+    fprintf(log_file, "\t\t [%zu] = " POISON_MODIFIER " (CANARY!!!)\n", (size_t)0, (unsigned long long)stack->canary_data[0]); // ???(size_t)0 почему компилятор думает что 0 это int ???
 
     for (size_t ind = 0; ind < stack->size; ind++) {
         ASSERT_FOR_ARR(ind, stack->size);
@@ -481,10 +479,10 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
 
     for (size_t ind = stack->size; ind < stack->capacity; ind++) {
         ASSERT_FOR_ARR(ind, stack->capacity);
-        fprintf(log_file ,"\t\t [%zu] = " POISON_MODIFIER " (POISON!!!) \n", ind + 1, stack->data[ind]);
+        fprintf(log_file ,"\t\t [%zu] = " POISON_MODIFIER " (POISON!!!) \n", ind + 1, (unsigned long long)stack->data[ind]);
     }
 
-    fprintf(log_file, "\t\t [%zu] = " POISON_MODIFIER " (CANARY!!!)\n", stack->capacity + 1, stack->data[stack->capacity]);
+    fprintf(log_file, "\t\t [%zu] = " POISON_MODIFIER " (CANARY!!!)\n", stack->capacity + 1, (unsigned long long)stack->data[stack->capacity]);
     fprintf(log_file ,"\t}\n");
     )
 
@@ -498,7 +496,7 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
 
     for (size_t ind = stack->size; ind < stack->capacity; ind++) {
         ASSERT_FOR_ARR(ind, stack->capacity);
-        fprintf(log_file ,"\t\t [%zu] = " POISON_MODIFIER " (POISON!!!) \n", ind, stack->data[ind]);
+        fprintf(log_file ,"\t\t [%zu] = " POISON_MODIFIER " (POISON!!!) \n", ind, (unsigned long long)stack->data[ind]);
     }
 
     fprintf(log_file ,"\t}\n");
