@@ -7,10 +7,9 @@ int main() {
 
     processor_start(&stack);
 
-    processor_push(&stack, 10);
-    processor_push(&stack, 20);
+    log_dump_stack(&stack, "");
 
-    processor_add(&stack);
+    processor_execute_commands(&stack);
 
     log_dump_stack(&stack, "");
 

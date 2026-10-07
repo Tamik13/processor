@@ -82,8 +82,9 @@ enum error_code_e {
     REINITIALIZATION     = 11,
     HASH_CHANGED         = 12,
     SEG_FAULT            = 13,
-    UNEXPECTED_ERROR     = 14,
-    INIT_VALUE           = -1
+    ERROR_DURING_READ    = 14,
+    INIT_VALUE           = -1,
+    UNEXPECTED_ERROR     = -2,
 };
 
 const char* const LOG_FILE_NAME = "log.txt";
@@ -101,4 +102,9 @@ void $print_intptr_arr(const int* const  int_array[], const size_t size);
 
 const char* my_str_error(const error_code_e error_code);
 
-error_code_e is_readble_ptr(void* ptr);
+error_code_e is_readble_ptr(const void* ptr);
+
+void $(int    num);
+void $(double num);
+void $(size_t num);
+void $(long long num);

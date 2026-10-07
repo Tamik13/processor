@@ -2,14 +2,14 @@
 #include <string.h>
 #include <time.h>
 
-typedef double stack_element;             // Введите между typedef и stack_element тип данных стека
-#define STK_MODIFIER "%lg"                // Введите после stk модификатор вывода типа данных стека
+typedef double stack_element;              // Введите между typedef и stack_element тип данных стека
+#define STK_MODIFIER "%lg"                 // Введите после stk модификатор вывода типа данных стека
 #define POISON_MODIFIER "%llx"
 const   stack_element POISON = 0xBAADF00D; // Введите редко (желательно никогда не) встречающиеся значение в стеке
 
 
 
-// #define STACK_DEBUG                        // Закомментируйте для отключения DEBUG режима
+#define STACK_DEBUG                        // Закомментируйте для отключения DEBUG режима
 
 
 
@@ -22,15 +22,15 @@ const   stack_element POISON = 0xBAADF00D; // Введите редко (жел�
 #define LOWER_COEF  4
 #define HIGHER_COEF 2
 
-const size_t        COUNT_CANARY      = 2;
-const size_t        COUNT_LEFT_CANARY = 1;
-const size_t        CANARY_SIZE       = 1;  // единица измерения - sizeof(stack_elemnet)
-const stack_element LEFT_CANARY       = (stack_element)0xDEADBABE;
-const stack_element RIGHT_CANARY      = (stack_element)0xBADCAFE;
+const size_t             COUNT_CANARY      = 2;
+const size_t             COUNT_LEFT_CANARY = 1;
+const size_t             CANARY_SIZE       = 1;  // единица измерения - sizeof(stack_elemnet)
+const unsigned long long LEFT_CANARY       = 0xDEADBABE;
+const unsigned long long RIGHT_CANARY      = 0xBADCAFE;
 
 #define TO_STR(val) #val
 
-#define STACK_INIT(stack, capacity) stack_init(stack, capacity ON_DBG(#stack, __FILE__, __FUNCTION__, __LINE__));
+#define STACK_INIT(stack, capacity) stack_init(stack, capacity ON_DBG(,#stack, __FILE__, __FUNCTION__, __LINE__));
 
 struct stack_s {
     ON_DBG(stack_element left_canary = LEFT_CANARY;)
