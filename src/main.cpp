@@ -2,16 +2,20 @@
 
 
 int main() {
-
     stack_s stack = {};
+    error_code_e error_code = INIT_VALUE;
 
-    processor_start(&stack);
+    error_code = processor_start(&stack);
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+        return error_code;
+    }
 
-    log_dump_stack(&stack, "");
-
-    processor_execute_commands(&stack);
-
-    log_dump_stack(&stack, "");
+    error_code = processor_execute_commands(&stack, "bytecode");
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+        return error_code;
+    }
 
     return 0;
 }

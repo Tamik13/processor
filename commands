@@ -1,0 +1,10 @@
+push 10
+top
+push 20
+top
+add
+top
+push 12
+multiply
+top
+hlc

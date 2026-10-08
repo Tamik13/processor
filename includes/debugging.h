@@ -83,6 +83,7 @@ enum error_code_e {
     HASH_CHANGED         = 12,
     SEG_FAULT            = 13,
     ERROR_DURING_READ    = 14,
+    DIVISION_BY_ZERO     = 15,
     INIT_VALUE           = -1,
     UNEXPECTED_ERROR     = -2,
 };
