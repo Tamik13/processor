@@ -1,0 +1,3 @@
+clear
+clang++ /Users/tamerlannagaev/prodva/PROCESSOR/src/debugging.cpp /Users/tamerlannagaev/prodva/PROCESSOR/src/assembler.cpp -Wc++14-compat -Wmissing-declarations -Wcast-align -Wcast-qual -Wchar-subscripts -Wbitwise-instead-of-logical -Wbitwise-instead-of-logical -Wconversion  -Wctor-dtor-privacy -Wempty-body -Wfloat-equal -Wformat-nonliteral -Wformat-security -Wformat-signedness -Wlogical-op-parentheses -Wnon-virtual-dtor -Woverloaded-virtual -Wpointer-arith -Wshadow-all -Wsign-conversion -Winteger-overflow -Wfixed-point-overflow -Wmissing-noreturn -Wswitch-default -Wswitch-enum -Wundef  -Wunreachable-code-aggressive -Wunused -Wno-missing-field-initializers -Wno-narrowing -Wno-old-style-cast -Wstack-protector -Werror=vla -o processor
+./processor commands

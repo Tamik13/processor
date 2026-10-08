@@ -173,7 +173,10 @@ const char* my_str_error(const error_code_e error_code) {
             return "SEG FAULT: 13";
 
         case ERROR_DURING_READ:
-            return "ERROR_DURING_READ: 14";
+            return "ERROR DURING READ: 14";
+
+        case DIVISION_BY_ZERO:
+            return "DIVISION BY ZERO: 15";
 
         case INIT_VALUE:
             return "INIT VALUE: -1";
