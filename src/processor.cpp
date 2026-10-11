@@ -40,6 +40,8 @@ error_code_e processor_cos             (stack_s* const stack);
 error_code_e processor_dump_stack(const stack_s* const stack);
 error_code_e processor_print_top       (stack_s* const stack);
 error_code_e processor_hlc             (stack_s* const stack);
+error_code_e processor_pop             (stack_s* const stack, double* const value);
+
 void         log_dump_cpu        (const cpu_s*   const cpu,  const char* const reason);
 
 
@@ -142,7 +144,8 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
 
 
 error_code_e processor_execute_commands(cpu_s* const cpu) {
-    error_code_e error_code            = INIT_VALUE;
+    error_code_e error_code = INIT_VALUE;
+    double       value      = NAN;
 
     for (;cpu->ip < cpu->commands_size; cpu->ip++) {
         switch(cpu->commands[cpu->ip].command) {
@@ -236,6 +239,23 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
             }
 
             return SUCCESS;
+
+        case 11:
+
+            error_code = processor_pop(&cpu->stack, &value);
+            if (error_code != SUCCESS) {
+                log_print_error(error_code, "processor_execute_commands: ERROR during write pop\n");
+                return error_code;
+            }
+
+            if ((uint8_t)cpu->commands[cpu->ip].value_1 < 0 || COUNT_REGISTERS <= (uint8_t)cpu->commands[cpu->ip].value_1) {
+                log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR during write pop, incorrect size\n");
+                return INCORRECT_SIZE;
+            }
+
+            cpu->registers[(uint8_t)cpu->commands[cpu->ip].value_1] = value;
+
+            break;
 
         default:
             printf("%d" COLOR_TEXT(" Incorrect command ", RED) "%d\n", __LINE__, cpu->commands[cpu->ip].command);
@@ -509,6 +529,29 @@ error_code_e processor_hlc(stack_s* const stack) {
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_hlc: ERROR during stack destroy\n");
         return error_code;
+    }
+
+    return SUCCESS;
+}
+
+
+error_code_e processor_pop(stack_s* const stack, double* const value) {
+    error_code_e error_code = INIT_VALUE;
+
+    error_code = stack_verify(stack);
+    if (error_code != SUCCESS) {
+        log_print_error(error_code, "processor_pop: ERROR during stack_verify\n");
+        return error_code;
+    }
+
+    if (stack->size < 1) {
+        log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
+        return INCORRECT_SIZE;
+    }
+
+    error_code = stack_pop(stack, value);
+    if (error_code != SUCCESS) {
+        log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
     }
 
     return SUCCESS;
