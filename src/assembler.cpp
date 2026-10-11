@@ -6,7 +6,7 @@ const size_t      MAX_COMMAND_LEN    = 15;
 
 struct asm_context_s {
     const char* input_file_name;
-    ssize_t*          labels_table;
+    ssize_t*    labels_table;
 };
 
 error_code_e make_bytecode         (asm_context_s* const context);

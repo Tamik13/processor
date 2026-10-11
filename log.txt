@@ -1,11 +1,11 @@
 
-FUNCTION: log_dump_stack DATE:Sun Oct 11 23:29:10 2026
- REASON: stack_s "&cpu->stack"[0x16afb2fd8] created by processor_start() at /Users/tamerlannagaev/prodva/PROCESSOR/src/processor.cpp:90
+FUNCTION: log_dump_stack DATE:Mon Oct 12 00:00:13 2026
+ REASON: stack_s "&cpu->stack"[0x16b2fafd8] created by processor_start() at /Users/tamerlannagaev/prodva/PROCESSOR/src/processor.cpp:89
 {
 	size     = 0
 	capacity = 5
-	hash     = 1421338242376208275
-	canary_data[0x140e06000]
+	hash     = 62188139998412521
+	canary_data[0x14d704080]
 	{
 		 [0] = deadbabe (CANARY!!!)
 		 [1] = baadf00d (POISON!!!) 
@@ -15,7 +15,7 @@ FUNCTION: log_dump_stack DATE:Sun Oct 11 23:29:10 2026
 		 [5] = baadf00d (POISON!!!) 
 		 [6] = badcafe (CANARY!!!)
 	}
-	data[0x140e06008]
+	data[0x14d704088]
 	{
 		 [0] = baadf00d (POISON!!!) 
 		 [1] = baadf00d (POISON!!!) 
@@ -25,12 +25,12 @@ FUNCTION: log_dump_stack DATE:Sun Oct 11 23:29:10 2026
 	}
 }
 
-FUNCTION: log_dump_cpu DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_dump_cpu DATE:Mon Oct 12 00:00:13 2026
  REASON: qwerty{
 	ip            = 0
 	commands_size = 12
-	commands[0x140e060b0] {
-		[0] = 1 10
+	commands[0x14d704100] {
+		[0] = 1 10 <[
 		[1] = 8 NAN
 		[2] = 1 20
 		[3] = 8 NAN
@@ -39,11 +39,11 @@ FUNCTION: log_dump_cpu DATE:Sun Oct 11 23:29:10 2026
 		[6] = 1 12
 		[7] = 3 NAN
 		[8] = 8 NAN
-		[9] = 11 NAN
+		[9] = 11 1
 		[10] = 10 NAN
 		[11] = 10 NAN
 	}
-	registers[0x140e05f80] {
+	registers[0x14d7040c0] {
 		[0] = 0
 		[1] = 0
 		[2] = 0
@@ -55,46 +55,46 @@ FUNCTION: log_dump_cpu DATE:Sun Oct 11 23:29:10 2026
 	}
 }
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack push
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack push
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack pop
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack pop
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack push
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack push
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack pop
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack pop
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack push
 
-FUNCTION: log_print DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print DATE:Mon Oct 12 00:00:13 2026
 stack pop
 
-FUNCTION: log_print_error DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_print_error DATE:Mon Oct 12 00:00:13 2026
 stack_verify: ERROR stack->data is null
 ERROR error_code: NULL STACK: 9 errno_code: Undefined error: 0
 
-FUNCTION: log_dump_cpu DATE:Sun Oct 11 23:29:10 2026
+FUNCTION: log_dump_cpu DATE:Mon Oct 12 00:00:13 2026
  REASON: qwerty{
 	stack cant be printed
 	ip            = 10
 	commands_size = 12
-	commands[0x140e060b0] {
+	commands[0x14d704100] {
 		[0] = 1 10
 		[1] = 8 NAN
 		[2] = 1 20
@@ -104,11 +104,11 @@ FUNCTION: log_dump_cpu DATE:Sun Oct 11 23:29:10 2026
 		[6] = 1 12
 		[7] = 3 NAN
 		[8] = 8 NAN
-		[9] = 11 NAN
-		[10] = 10 NAN
+		[9] = 11 1
+		[10] = 10 NAN <[
 		[11] = 10 NAN
 	}
-	registers[0x140e05f80] {
+	registers[0x14d7040c0] {
 		[0] = 0
 		[1] = 360
 		[2] = 0
