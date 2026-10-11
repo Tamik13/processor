@@ -33,6 +33,7 @@ void log_print(const char* const message) {
     }
 }
 
+
 void log_print_error(error_code_e error_code, const char* const message) {
     FILE* log_file = fopen(LOG_FILE_NAME, "a");
 
@@ -174,7 +175,6 @@ const char* my_str_error(const error_code_e error_code) {
 }
 
 
-
 error_code_e is_readble_ptr(const void* ptr) {
     int file_descriptor[2] = {0, 0};
 
@@ -231,9 +231,10 @@ error_code_e is_readble_ptr(const void* ptr) {
 }
 
 
-void $(int       num) {$int(num);}
-void $(double    num) {$double(num);}
-void $(size_t    num) {$size_t(num);}
-void $(long long num) {$llint(num);}
-void $(void**    num) {$ptr(num);}
+void _$(int       num)         {$int(num);}
+void _$(double    num)         {$double(num);}
+void _$(size_t    num)         {$size_t(num);}
+void _$(long long num)         {$llint(num);}
+void _$(void**    num)         {$ptr(num);}
+void _$(const char* const str) {$string(str);};
 

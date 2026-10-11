@@ -42,7 +42,7 @@ error_code_e processor_print_top       (stack_s* const stack);
 error_code_e processor_hlc             (stack_s* const stack);
 error_code_e processor_pop             (stack_s* const stack, double* const value);
 
-void         log_dump_cpu        (const cpu_s*   const cpu,  const char* const reason);
+void         log_dump_cpu        (cpu_s*   const cpu,  const char* const reason);
 
 
 const stack_element EPSILON  = 1e-6;
@@ -68,11 +68,17 @@ int main() {
 
     log_dump_cpu(&cpu, "qwerty");
 
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+    }
+
     error_code = processor_execute_commands(&cpu);
     if (error_code != SUCCESS) {
         PRINT_ERROR(error_code);
         return error_code;
     }
+
+    log_dump_cpu(&cpu, "qwerty");
 
     return 0;
 }
@@ -558,8 +564,9 @@ error_code_e processor_pop(stack_s* const stack, double* const value) {
 }
 
 
-void log_dump_cpu(const cpu_s* const cpu, const char* const reason) {
+void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
     assert(cpu != NULL);
+    error_code_e error_code = INIT_VALUE;
 
     FILE* log_file = fopen(LOG_FILE_NAME, "a");
 
@@ -575,7 +582,12 @@ void log_dump_cpu(const cpu_s* const cpu, const char* const reason) {
 
     fprintf(log_file, "{\n");
 
-    log_dump_stack(&cpu->stack, "");
+    error_code = stack_verify(&cpu->stack);
+    if (error_code == SUCCESS) {
+        log_dump_stack(&cpu->stack, "");
+    } else {
+        fprintf(log_file, "\tstack cant be printed\n");
+    }
 
     fprintf(log_file, "\tip            = %zu\n", cpu->ip);
     fprintf(log_file, "\tcommands_size = %zu\n", cpu->commands_size);

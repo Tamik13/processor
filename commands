@@ -7,4 +7,5 @@ top
 push 12
 multiply
 top
+pop rax
 hlc
