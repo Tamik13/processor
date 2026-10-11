@@ -1,37 +1,155 @@
-#include "../includes/processor.h"
+#include "../includes/stack.h"
+#include <math.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <inttypes.h>
 
-const stack_element EPSILON = 1e-6;
+struct command_s {
+    uint8_t command = 0;
+    double  value_1 = NAN;
+};
+
+struct cpu_s {
+    stack_s    stack;
+    double*    registers;
+    size_t     ip;
+    command_s* commands;
+    size_t     commands_size;
+};
+
+#define STAT_GET_SIZE(file_size, file_name)                \
+    struct stat buff = {};                      \
+                                                \
+    if (stat(file_name, &buff) == -1) {   \
+        log_print_error(STAT_READ_ERROR, "STAT\n"); \
+        return STAT_READ_ERROR;       \
+    }                                                            \
+                                                \
+    file_size = (size_t)buff.st_size; // TODO: func
+
+error_code_e processor_start           (cpu_s*   const cpu);
+error_code_e processor_load_program    (cpu_s*   const cpu,   const char* const bytecode_file_name);
+error_code_e processor_execute_commands(cpu_s*   const cpu);
+error_code_e processor_push            (stack_s* const stack, const stack_element element);
+error_code_e processor_add             (stack_s* const stack);
+error_code_e processor_multiply        (stack_s* const stack);
+error_code_e processor_div             (stack_s* const stack);
+error_code_e processor_sqrt            (stack_s* const stack);
+error_code_e processor_sin             (stack_s* const stack);
+error_code_e processor_cos             (stack_s* const stack);
+error_code_e processor_dump_stack(const stack_s* const stack);
+error_code_e processor_print_top       (stack_s* const stack);
+error_code_e processor_hlc             (stack_s* const stack);
+void         log_dump_cpu        (const cpu_s*   const cpu,  const char* const reason);
+
+
+const stack_element EPSILON  = 1e-6;
 const size_t MAX_COMMAND_LEN = 15;
+const size_t COUNT_REGISTERS = 8;
 
-error_code_e processor_execute_commands(stack_s* const stack, const char* const bytecode_file_name) {
-    char          line[MAX_COMMAND_LEN]    = {};
-    int           command                  = 0;
-    double        num                      = NAN;
-    int           count_reads              = 0;
-    error_code_e  error_code               = INIT_VALUE;
+
+int main() {
+    cpu_s        cpu        = {};
+    error_code_e error_code = INIT_VALUE;
+
+    error_code = processor_start(&cpu);
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+        return error_code;
+    }
+
+    error_code = processor_load_program(&cpu, "../PROCESSOR/bytecode");
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+        return error_code;
+    }
+
+    log_dump_cpu(&cpu, "qwerty");
+
+    error_code = processor_execute_commands(&cpu);
+    if (error_code != SUCCESS) {
+        PRINT_ERROR(error_code);
+        return error_code;
+    }
+
+    return 0;
+}
+
+
+error_code_e processor_start(cpu_s* const cpu) {
+    start_logs();
+
+    STACK_INIT(&cpu->stack, 5);
+    cpu->registers     = (double*)calloc(COUNT_REGISTERS, sizeof(double));
+    cpu->ip            = 0;
+    cpu->commands_size = 0;
+    cpu->commands      = NULL;
+
+    return SUCCESS;
+}
+
+
+error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode_file_name) {
+    char         line[MAX_COMMAND_LEN] = {};
+    uint8_t      command               = 0;
+    double       value                 = NAN;
+    int          count_read            = 0;
+    size_t       file_size             = 0;
+
+    STAT_GET_SIZE(file_size, bytecode_file_name);
+
+    cpu->commands = (command_s*)calloc(file_size, sizeof(command_s));
+
+    if (cpu->commands == NULL) {
+        log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during allocation\n");
+        return ALLOCATION_ERROR;
+    }
 
     FILE* bytecode_file = fopen(bytecode_file_name, "r");
-
     if (bytecode_file == NULL) {
-        log_print_error(ERROR_DURING_OPEN, "processor_execute_commands: ERROR during open\n");
+        log_print_error(ERROR_DURING_OPEN, "processor_load_program: ERROR during open\n");
         return ERROR_DURING_OPEN;
     }
 
-    if (fgets(line, MAX_COMMAND_LEN, bytecode_file) == NULL) {
-        fclose(bytecode_file);
-        log_print_error(ERROR_DURING_READ, "processor_execute_commands: ERROR during read\n");
-        return ERROR_DURING_READ;
+    while (!feof(bytecode_file)) {
+        fgets(line, MAX_COMMAND_LEN, bytecode_file);
+        count_read = sscanf(line, "%" PRIu8 " %lg", &command, &value);
+
+        cpu->commands[cpu->commands_size].command = command;
+
+        if (count_read == 2) {
+            cpu->commands[cpu->commands_size].value_1 = value;
+        }
+
+        cpu->commands_size++;
     }
 
-    count_reads = sscanf(line, "%d %lg", &command, &num);
+    if (fclose(bytecode_file) == EOF) {
+        log_print_error(ERROR_DURING_CLOSE, "processor_load_program: ERROR during close\n");
+        return ERROR_DURING_CLOSE;
+    }
 
-    while (count_reads) {
-        switch(command) {
+    command_s* reduced_commands = (command_s*)realloc(cpu->commands, sizeof(command_s) * cpu->commands_size);
+    if (reduced_commands == NULL) {
+        log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during recalloc\n");
+        return ALLOCATION_ERROR;
+    }
+
+    cpu->commands = reduced_commands;
+
+    return SUCCESS;
+}
+
+
+error_code_e processor_execute_commands(cpu_s* const cpu) {
+    error_code_e error_code            = INIT_VALUE;
+
+    for (;cpu->ip < cpu->commands_size; cpu->ip++) {
+        switch(cpu->commands[cpu->ip].command) {
         case 1:
 
-            error_code = processor_push(stack, num);
+            error_code = processor_push(&cpu->stack, cpu->commands[cpu->ip].value_1);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during push\n");
                 return error_code;
             }
@@ -39,9 +157,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 2:
 
-            error_code = processor_add(stack);
+            error_code = processor_add(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during add\n");
                 return error_code;
             }
@@ -49,9 +166,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 3:
 
-            error_code = processor_multiply(stack);
+            error_code = processor_multiply(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during multiply\n");
                 return error_code;
             }
@@ -59,9 +175,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 4:
 
-            error_code = processor_div(stack);
+            error_code = processor_div(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during div\n");
                 return error_code;
             }
@@ -69,9 +184,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 5:
 
-            error_code = processor_sqrt(stack);
+            error_code = processor_sqrt(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during sqrt\n");
                 return error_code;
             }
@@ -79,9 +193,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 6:
 
-            error_code = processor_sin(stack);
+            error_code = processor_sin(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during sin\n");
                 return error_code;
             }
@@ -89,9 +202,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 7:
 
-            error_code = processor_cos(stack);
+            error_code = processor_cos(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during cos\n");
                 return error_code;
             }
@@ -99,9 +211,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 8:
 
-            error_code = processor_print_top(stack);
+            error_code = processor_print_top(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during top\n");
                 return error_code;
             }
@@ -109,9 +220,8 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 9:
 
-            error_code = processor_dump_stack(stack);
+            error_code = processor_dump_stack(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during dump\n");
                 return error_code;
             }
@@ -119,50 +229,19 @@ error_code_e processor_execute_commands(stack_s* const stack, const char* const 
 
         case 10:
 
-            error_code = processor_hlc(stack);
+            error_code = processor_hlc(&cpu->stack);
             if (error_code != SUCCESS) {
-                fclose(bytecode_file);
                 log_print_error(error_code, "processor_execute_commands: ERROR during write hlc\n");
                 return error_code;
-            }
-
-            if (fclose(bytecode_file) == EOF) {
-                log_print_error(ERROR_DURING_CLOSE, "processor_execute_commands: ERROR during close\n");
-                return ERROR_DURING_CLOSE;
             }
 
             return SUCCESS;
 
         default:
-            printf(COLOR_TEXT("Incorrect command %d\n", RED), command);
+            printf("%d" COLOR_TEXT(" Incorrect command ", RED) "%d\n", __LINE__, cpu->commands[cpu->ip].command);
             break;
         }
-
-        if (fgets(line, MAX_COMMAND_LEN, bytecode_file) == NULL) {
-            log_print_error(ERROR_DURING_READ, "processor_execute_commands: ERROR during read\n");
-            fclose(bytecode_file);
-            return ERROR_DURING_READ;
-        }
-
-        count_reads = sscanf(line, "%d %lg", &command, &num);
     }
-
-    $ANCHOR
-
-   if (fclose(bytecode_file) == EOF) {
-        log_print_error(ERROR_DURING_CLOSE, "processor_execute_commands: ERROR during close\n");
-        return ERROR_DURING_CLOSE;
-   }
-   $ANCHOR
-
-    return SUCCESS;
-}
-
-
-error_code_e processor_start(stack_s* const stack) {
-    start_logs();
-
-    STACK_INIT(stack, 5);
 
     return SUCCESS;
 }
@@ -433,4 +512,56 @@ error_code_e processor_hlc(stack_s* const stack) {
     }
 
     return SUCCESS;
+}
+
+
+void log_dump_cpu(const cpu_s* const cpu, const char* const reason) {
+    assert(cpu != NULL);
+
+    FILE* log_file = fopen(LOG_FILE_NAME, "a");
+
+    if (log_file == NULL) {
+        PRINT_ERROR(ERROR_DURING_OPEN);
+        abort();
+    }
+
+    time_t tm = 0;
+    tm = time(NULL);
+
+    fprintf(log_file, "\nFUNCTION: log_dump_cpu DATE:%s REASON: %s", ctime(&tm), reason);
+
+    fprintf(log_file, "{\n");
+
+    log_dump_stack(&cpu->stack, "");
+
+    fprintf(log_file, "\tip            = %zu\n", cpu->ip);
+    fprintf(log_file, "\tcommands_size = %zu\n", cpu->commands_size);
+    fprintf(log_file, "\tcommands[%p] {\n",      cpu->commands);
+
+    for (size_t ind = 0; ind < cpu->commands_size; ind++) {
+        ASSERT_FOR_ARR(ind, cpu->commands_size);
+        fprintf(log_file, "\t\t[%zu] = %" PRIu8, ind, cpu->commands[ind].command);
+
+        if (cpu->commands[ind].command == 1) {
+            fprintf(log_file, " %lg\n", cpu->commands[ind].value_1);
+        } else {
+            fprintf(log_file, " NAN\n");
+        }
+    }
+
+    fprintf(log_file, "\t}\n");
+    fprintf(log_file, "\tregisters[%p] {\n", cpu->registers);
+
+    for (size_t ind = 0; ind < COUNT_REGISTERS; ind++) {
+        ASSERT_FOR_ARR(ind, COUNT_REGISTERS);
+        fprintf(log_file, "\t\t[%zu] = %lg\n", ind, cpu->registers[ind]);
+    }
+
+    fprintf(log_file, "\t}\n");
+    fprintf(log_file, "}\n");
+
+    if (fclose(log_file) == EOF) {
+        PRINT_ERROR(ERROR_DURING_CLOSE);
+        abort();
+    }
 }

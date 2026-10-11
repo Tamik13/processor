@@ -84,6 +84,7 @@ enum error_code_e {
     SEG_FAULT            = 13,
     ERROR_DURING_READ    = 14,
     DIVISION_BY_ZERO     = 15,
+    STAT_READ_ERROR      = 16,
     INIT_VALUE           = -1,
     UNEXPECTED_ERROR     = -2,
 };

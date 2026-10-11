@@ -1,6 +1,16 @@
 #include "../includes/debugging.h"
 
 
+void start_logs(void) {
+    FILE* log_file = fopen(LOG_FILE_NAME, "w");
+
+    if (log_file == NULL) {
+        PRINT_ERROR(ERROR_DURING_OPEN);
+        abort();
+    }
+}
+
+
 void log_print(const char* const message) {
     assert(message != NULL);
 
@@ -34,8 +44,8 @@ void log_print_error(error_code_e error_code, const char* const message) {
     time_t date = 0;
     date = time(NULL);
 
-    fprintf(log_file, "\nFUNCTION: log_print_error DATE:%s", ctime(&date));
-    fprintf(log_file, "%s"                                 , message);
+    fprintf(log_file, "\nFUNCTION: log_print_error DATE:%s",   ctime(&date));
+    fprintf(log_file, "%s"                                 ,   message);
     fprintf(log_file, "ERROR error_code: %s errno_code: %s\n", my_str_error(error_code), strerror(errno));
 
     if (fclose(log_file) == EOF) {
@@ -101,33 +111,6 @@ void print_intptr_arr(const int* const int_array[], const size_t size) {
 }
 
 
-void debug_qsort(const int* array, const size_t size, const size_t left, const size_t right, void* middle_el, const char* const reason) {
-    for (size_t num_ind = 0; num_ind < left; num_ind++) {
-        ASSERT_FOR_ARR(num_ind, size);
-
-        printf(COLOR_TEXT("%4d ", BLUE), *((const int* const)array + num_ind ));
-    }
-
-    for (size_t num_ind = left; num_ind <= right; num_ind++) {
-        ASSERT_FOR_ARR(num_ind, size);
-
-        printf("%4d ", *((const int* const)array + num_ind));
-    }
-
-    for (size_t num_ind = right + 1; num_ind < size; num_ind++) {
-        ASSERT_FOR_ARR(num_ind, size);
-
-        printf(COLOR_TEXT("%4d ", RED), *((const int* const)array + num_ind));
-    }
-
-
-    printf(COLOR_TEXT(" left = %zu right = %zu middle_el = %d  reason: %s", VIOLET) "\n",
-                        left,      right,*(int*)middle_el,             reason);
-
-    getchar();
-}
-
-
 const char* my_str_error(const error_code_e error_code) {
     switch (error_code) {
         case SUCCESS:
@@ -177,6 +160,9 @@ const char* my_str_error(const error_code_e error_code) {
 
         case DIVISION_BY_ZERO:
             return "DIVISION BY ZERO: 15";
+
+        case STAT_READ_ERROR:
+            return "STAT READ ERROR: 16";
 
         case INIT_VALUE:
             return "INIT VALUE: -1";
