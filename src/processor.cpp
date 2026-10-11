@@ -12,7 +12,7 @@ struct command_s {
 struct cpu_s {
     stack_s    stack;
     double*    registers;
-    size_t     ip;
+    size_t     pc;
     command_s* commands;
     size_t     commands_size;
 };
@@ -46,7 +46,6 @@ void         log_dump_cpu        (cpu_s*   const cpu,  const char* const reason)
 
 
 const stack_element EPSILON  = 1e-6;
-const size_t MAX_COMMAND_LEN = 15;
 const size_t COUNT_REGISTERS = 8;
 
 
@@ -89,7 +88,7 @@ error_code_e processor_start(cpu_s* const cpu) {
 
     STACK_INIT(&cpu->stack, 5);
     cpu->registers     = (double*)calloc(COUNT_REGISTERS, sizeof(double));
-    cpu->ip            = 0;
+    cpu->pc            = 0;
     cpu->commands_size = 0;
     cpu->commands      = NULL;
 
@@ -98,10 +97,8 @@ error_code_e processor_start(cpu_s* const cpu) {
 
 
 error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode_file_name) {
-    char         line[MAX_COMMAND_LEN] = {};
     uint8_t      command               = 0;
     double       value                 = NAN;
-    int          count_read            = 0;
     size_t       file_size             = 0;
 
     STAT_GET_SIZE(file_size, bytecode_file_name);
@@ -120,12 +117,12 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
     }
 
     while (!feof(bytecode_file)) {
-        fgets(line, MAX_COMMAND_LEN, bytecode_file);
-        count_read = sscanf(line, "%" PRIu8 " %lg", &command, &value);
+        fscanf(bytecode_file, "%" PRIu8, &command);
 
         cpu->commands[cpu->commands_size].command = command;
 
-        if (count_read == 2) {
+        if (command == 1 || command == 11) {
+            fscanf(bytecode_file, "%lg", &value);
             cpu->commands[cpu->commands_size].value_1 = value;
         }
 
@@ -153,11 +150,11 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
     double       value      = NAN;
 
-    for (;cpu->ip < cpu->commands_size; cpu->ip++) {
-        switch(cpu->commands[cpu->ip].command) {
+    for (;cpu->pc < cpu->commands_size; cpu->pc++) {
+        switch(cpu->commands[cpu->pc].command) {
         case 1:
 
-            error_code = processor_push(&cpu->stack, cpu->commands[cpu->ip].value_1);
+            error_code = processor_push(&cpu->stack, cpu->commands[cpu->pc].value_1);
             if (error_code != SUCCESS) {
                 log_print_error(error_code, "processor_execute_commands: ERROR during push\n");
                 return error_code;
@@ -254,17 +251,17 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
                 return error_code;
             }
 
-            if ((uint8_t)cpu->commands[cpu->ip].value_1 < 0 || COUNT_REGISTERS <= (uint8_t)cpu->commands[cpu->ip].value_1) {
+            if ((uint8_t)cpu->commands[cpu->pc].value_1 < 0 || COUNT_REGISTERS <= (uint8_t)cpu->commands[cpu->pc].value_1) {
                 log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR during write pop, incorrect size\n");
                 return INCORRECT_SIZE;
             }
 
-            cpu->registers[(uint8_t)cpu->commands[cpu->ip].value_1] = value;
+            cpu->registers[(uint8_t)cpu->commands[cpu->pc].value_1] = value;
 
             break;
 
         default:
-            printf("%d" COLOR_TEXT(" Incorrect command ", RED) "%d\n", __LINE__, cpu->commands[cpu->ip].command);
+            printf("%d" COLOR_TEXT(" Incorrect command ", RED) "%d\n", __LINE__, cpu->commands[cpu->pc].command);
             break;
         }
     }
@@ -589,7 +586,7 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
         fprintf(log_file, "\tstack cant be printed\n");
     }
 
-    fprintf(log_file, "\tip            = %zu\n", cpu->ip);
+    fprintf(log_file, "\tip            = %zu\n", cpu->pc);
     fprintf(log_file, "\tcommands_size = %zu\n", cpu->commands_size);
     fprintf(log_file, "\tcommands[%p] {\n",      cpu->commands);
 
@@ -597,11 +594,17 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
         ASSERT_FOR_ARR(ind, cpu->commands_size);
         fprintf(log_file, "\t\t[%zu] = %" PRIu8, ind, cpu->commands[ind].command);
 
-        if (cpu->commands[ind].command == 1) {
-            fprintf(log_file, " %lg\n", cpu->commands[ind].value_1);
+        if (cpu->commands[ind].command == 1 || cpu->commands[ind].command == 11) {
+            fprintf(log_file, " %lg", cpu->commands[ind].value_1);
         } else {
-            fprintf(log_file, " NAN\n");
+            fprintf(log_file, " NAN");
         }
+
+        if (ind == cpu->pc) {
+            fprintf(log_file, " <[");
+        }
+
+        fprintf(log_file, "\n");
     }
 
     fprintf(log_file, "\t}\n");
