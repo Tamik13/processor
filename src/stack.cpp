@@ -439,6 +439,8 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
         abort();
     }
 
+
+
     time_t tm = 0;
     tm = time(NULL);
 
@@ -455,7 +457,6 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
 
     fprintf(log_file,"\tcanary_data[%p]\n", stack->canary_data);
     fprintf(log_file, "\t{\n");
-
     fprintf(log_file, "\t\t [%zu] = " POISON_MODIFIER " (CANARY!!!)\n", (size_t)0, (unsigned long long)stack->canary_data[0]); // ???(size_t)0 почему компилятор думает что 0 это int ???
 
     for (size_t ind = 0; ind < stack->size; ind++) {
@@ -480,13 +481,16 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
         fprintf(log_file ,"\t\t*[%zu] = " STK_MODIFIER "\n", ind, stack->data[ind]);
     }
 
+
     for (size_t ind = stack->size; ind < stack->capacity; ind++) {
         ASSERT_FOR_ARR(ind, stack->capacity);
         fprintf(log_file ,"\t\t [%zu] = " POISON_MODIFIER " (POISON!!!) \n", ind, (unsigned long long)stack->data[ind]);
     }
 
+
     fprintf(log_file ,"\t}\n");
     fprintf(log_file, "}\n");
+
 
     if (fclose(log_file) == EOF) {
         PRINT_ERROR(ERROR_DURING_CLOSE);

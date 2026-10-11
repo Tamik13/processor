@@ -1,4 +1,18 @@
-#include "../includes/assembler.h"
+#include "../includes/debugging.h"
+#include <math.h>
+
+const char* const bytecode_file_name = "bytecode";
+const size_t      MAX_COMMAND_LEN    = 15;
+
+struct asm_context_s {
+    const char* input_file_name;
+    ssize_t*          labels_table;
+};
+
+error_code_e make_bytecode         (asm_context_s* const context);
+error_code_e write_in_bytecode_file(const int            command, const double num);
+error_code_e clear_bytecode_file   ();
+error_code_e context_init          (asm_context_s* const context, const char* const input_file_name);
 
 
 int main(int argc, char* argv[]) {
@@ -8,9 +22,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    asm_context_s context = {};
+    context_init(&context, argv[1]);
+
     clear_bytecode_file();
 
-    error_code_e error_code = make_bytecode(argv[1]);
+    error_code_e error_code = make_bytecode(&context);
     if (error_code != SUCCESS) {
         PRINT_ERROR(error_code);
         return error_code;
@@ -20,31 +37,27 @@ int main(int argc, char* argv[]) {
 }
 
 
-error_code_e make_bytecode(const char* const input_file_name) {
-    char         command[MAX_COMMAND_LEN] = {};
-    char         line[MAX_COMMAND_LEN]    = {};
+error_code_e make_bytecode(asm_context_s* context) {
+    char         command[MAX_COMMAND_LEN] = "";
+    char         line[MAX_COMMAND_LEN]    = "";
     double       num                      = NAN;
+    char         reg[MAX_COMMAND_LEN]     = "";
     int          count_reads              = 0;
     error_code_e error_code               = INIT_VALUE;
 
-    FILE* input_file = fopen(input_file_name, "r");
+    FILE* input_file = fopen(context->input_file_name, "r");
 
     if (input_file == NULL) {
         log_print_error(ERROR_DURING_OPEN, "make_bytecode: ERROR during open\n");
         return ERROR_DURING_OPEN;
     }
 
-    if (fgets(line, MAX_COMMAND_LEN, input_file) == NULL) {
-        fclose(input_file);
-        log_print_error(ERROR_DURING_READ, "make_bytecode: ERROR during read\n");
-        return ERROR_DURING_READ;
-    }
-
-    count_reads = sscanf(line, "%s %lg", command, &num);
+    count_reads = fscanf(input_file, "%s", command);
 
     while (count_reads) {
-        if (count_reads == 2 &&
-                   strncmp(command, "push",     MAX_COMMAND_LEN) == 0) {
+        if        (strncmp(command, "push",     MAX_COMMAND_LEN) == 0) {
+
+            fscanf(input_file, "%lg", &num);
 
             error_code = write_in_bytecode_file(1, num);
             if (error_code != SUCCESS) {
@@ -135,19 +148,39 @@ error_code_e make_bytecode(const char* const input_file_name) {
             }
             break;
 
+        } else if (strncmp(command, "pop",      MAX_COMMAND_LEN) == 0) {
+
+            fscanf(input_file, "%s", reg);
+
+            if (strncmp(reg, "rax", MAX_COMMAND_LEN) == 0) {
+                error_code = write_in_bytecode_file(11, 1);
+
+            } else if (strncmp(reg, "rbx", MAX_COMMAND_LEN) == 0) {
+                error_code = write_in_bytecode_file(11, 2);
+
+            } else if (strncmp(reg, "rcx", MAX_COMMAND_LEN) == 0) {
+                error_code = write_in_bytecode_file(11, 3);
+
+            } else if (strncmp(reg, "rdx", MAX_COMMAND_LEN) == 0) {
+                error_code = write_in_bytecode_file(11, 4);
+
+            } else {
+                fprintf(stderr, "Incorrect command: %s\n", line);
+                break;
+            }
+
+            if (error_code != SUCCESS) {
+                fclose(input_file);
+                log_print_error(error_code, "processor_execute_commands: ERROR during write pop\n");
+                return error_code;
+            }
+
         } else {
             fprintf(stderr, "Incorrect command: %s\n", line);
             break;
         }
 
-
-        if (fgets(line, MAX_COMMAND_LEN, input_file) == NULL) {
-            fclose(input_file);
-            log_print_error(error_code, "processor_execute_commands: ERROR during write multiply\n");
-            return ERROR_DURING_READ;
-        }
-
-        count_reads = sscanf(line, "%s %lg", command, &num);
+        count_reads = fscanf(input_file, "%s", command);
     }
 
     fclose(input_file);
@@ -164,7 +197,7 @@ error_code_e write_in_bytecode_file(const int command, const double num) {
         return ERROR_DURING_OPEN;
     }
 
-    if (command == 1) {
+    if (command == 1 || command == 11) {
         fprintf(bytecode_file ,"%d %lg\n", command, num);
 
     } else {
@@ -179,6 +212,7 @@ error_code_e write_in_bytecode_file(const int command, const double num) {
     return SUCCESS;
 }
 
+
 error_code_e clear_bytecode_file() {
     FILE* bytecode_file = fopen(bytecode_file_name, "w");
 
@@ -191,6 +225,16 @@ error_code_e clear_bytecode_file() {
         log_print_error(ERROR_DURING_CLOSE, "write_in_bytecode_file: ERROR during close bytecode_file\n");
         return ERROR_DURING_CLOSE;
     }
+
+    return SUCCESS;
+}
+
+
+error_code_e context_init(asm_context_s* const context, const char* const input_file_name) {
+    assert(context != NULL);
+
+    context->input_file_name = input_file_name;
+
 
     return SUCCESS;
 }

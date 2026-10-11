@@ -57,15 +57,16 @@
 #define COLOR_TEXT_START(COLOR) "\033[" COLOR "m"
 #define COLOR_TEXT_END          "\033[0m"
 
-#define $int(num)     $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %d\n\n",       num)
-#define $double(num)  $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lg\n\n",      num)
-#define $luint(num)   $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lu\n\n",      num)
-#define $llint(num)   $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lld\n\n",     num)
-#define $uint(num)    $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %u\n\n",       num)
-#define $char(symbol) $ANCHOR fprintf(stderr, COLOR_TEXT(#symbol, VIOLET) " = <%c>, %d\n\n", symbol, symbol)
-#define $string(str)  $ANCHOR fprintf(stderr, COLOR_TEXT(#str,    VIOLET) " = <%s>\n\n",     str)
-#define $size_t(num)  $ANCHOR fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %zu\n\n",      num)
-#define $ptr(ptr)     $ANCHOR fprintf(stderr, COLOR_TEXT(#ptr,    VIOLET) " = %p\n\n",       ptr)
+#define $int(num)     fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %d\n\n",       num)
+#define $double(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lg\n\n",      num)
+#define $luint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lu\n\n",      num)
+#define $llint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lld\n\n",     num)
+#define $uint(num)    fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %u\n\n",       num)
+#define $char(symbol) fprintf(stderr, COLOR_TEXT(#symbol, VIOLET) " = <%c>, %d\n\n", symbol, symbol)
+#define $string(str)  fprintf(stderr, COLOR_TEXT(#str,    VIOLET) " = <%s>\n\n",     str)
+#define $size_t(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %zu\n\n",      num)
+#define $ptr(ptr)     fprintf(stderr, COLOR_TEXT(#ptr,    VIOLET) " = %p\n\n",       ptr)
+#define $(param)      $ANCHOR _$(param);
 
 enum error_code_e {
     SUCCESS              = 0,
@@ -106,7 +107,8 @@ const char* my_str_error(const error_code_e error_code);
 
 error_code_e is_readble_ptr(const void* ptr);
 
-void $(int    num);
-void $(double num);
-void $(size_t num);
-void $(long long num);
+void _$(int    num);
+void _$(double num);
+void _$(size_t num);
+void _$(long long num);
+void _$(const char* const str);
