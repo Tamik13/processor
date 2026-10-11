@@ -1,4 +1,6 @@
 processor
+bytecode
+commands
 
 # Prerequisites
 *.d

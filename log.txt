@@ -1,27 +1,82 @@
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_dump_stack DATE:Sun Oct 11 19:09:29 2026
+ REASON: stack_s "&cpu->stack"[0x16f8a2fd8] created by processor_start() at /Users/tamerlannagaev/prodva/PROCESSOR/src/processor.cpp:82
+{
+	size     = 0
+	capacity = 5
+	hash     = 4655201182877892487
+	canary_data[0x120e06000]
+	{
+		 [0] = deadbabe (CANARY!!!)
+		 [1] = baadf00d (POISON!!!) 
+		 [2] = baadf00d (POISON!!!) 
+		 [3] = baadf00d (POISON!!!) 
+		 [4] = baadf00d (POISON!!!) 
+		 [5] = baadf00d (POISON!!!) 
+		 [6] = badcafe (CANARY!!!)
+	}
+	data[0x120e06008]
+	{
+		 [0] = baadf00d (POISON!!!) 
+		 [1] = baadf00d (POISON!!!) 
+		 [2] = baadf00d (POISON!!!) 
+		 [3] = baadf00d (POISON!!!) 
+		 [4] = baadf00d (POISON!!!) 
+	}
+}
+
+FUNCTION: log_dump_cpu DATE:Sun Oct 11 19:09:29 2026
+ REASON: qwerty{
+	ip            = 0
+	commands_size = 11
+	commands[0x120e060b0] {
+		[0] = 1 10
+		[1] = 8 NAN
+		[2] = 1 20
+		[3] = 8 NAN
+		[4] = 2 NAN
+		[5] = 8 NAN
+		[6] = 1 12
+		[7] = 3 NAN
+		[8] = 8 NAN
+		[9] = 10 NAN
+		[10] = 10 NAN
+	}
+	registers[0x120e05f80] {
+		[0] = 0
+		[1] = 0
+		[2] = 0
+		[3] = 0
+		[4] = 0
+		[5] = 0
+		[6] = 0
+		[7] = 0
+	}
+}
+
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack push
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack push
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack pop
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack pop
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack push
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack push
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack pop
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack pop
 
-FUNCTION: log_print DATE:Thu Oct  8 13:27:20 2026
+FUNCTION: log_print DATE:Sun Oct 11 19:09:29 2026
 stack push

@@ -428,20 +428,6 @@ bool is_stack_init(const stack_s* const stack) {
 }
 
 
-void start_logs(void) {
-    FILE* log_file = fopen(LOG_FILE_NAME, "w");
-
-    if (log_file == NULL) {
-        PRINT_ERROR(ERROR_DURING_OPEN);
-        abort();
-    }
-
-    if (fclose(log_file) == EOF) {
-        PRINT_ERROR(ERROR_DURING_CLOSE);
-        abort();
-    }
-}
-
 
 void log_dump_stack(const stack_s* const stack, const char* const reason) {
     assert(stack != NULL);
