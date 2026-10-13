@@ -9,7 +9,7 @@ const   stack_element POISON = 0xBAADF00D; // Введите редко (жел�
 
 
 
-#define STACK_DEBUG                        // Закомментируйте для отключения DEBUG режима
+// #define STACK_DEBUG                        // Закомментируйте для отключения DEBUG режима
 
 
 

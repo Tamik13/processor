@@ -86,6 +86,8 @@ enum error_code_e {
     ERROR_DURING_READ    = 14,
     DIVISION_BY_ZERO     = 15,
     STAT_READ_ERROR      = 16,
+    END_OF_FILE          = 17,
+    INCORRECT_PARAM      = 18,
     INIT_VALUE           = -1,
     UNEXPECTED_ERROR     = -2,
 };

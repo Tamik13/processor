@@ -291,6 +291,10 @@ error_code_e stack_destroy(stack_s* const stack) {
         return error_code;
     }
 
+    if (!is_stack_init(stack)) {
+        return SUCCESS;
+    }
+
     free(stack->data ON_DBG( - COUNT_LEFT_CANARY * CANARY_SIZE));
 
     stack->data       = NULL;
