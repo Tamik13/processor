@@ -1,11 +1,18 @@
-push 10
-top
-push 20
+push 0
+pop rax
+:first
+push rax
+push 1
 top
 add
 top
-push 12
+pop rax
+push rax
+push rax
+top
 multiply
 top
+pop rbx
+jmp :first
 pop rax
 hlc
