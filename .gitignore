@@ -1,6 +1,8 @@
 processor
 bytecode
 commands
+asm
+log.txt
 
 # Prerequisites
 *.d

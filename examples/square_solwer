@@ -1,0 +1,91 @@
+:start
+    in
+    in
+    in
+    pop rcx
+    pop rbx
+    pop rax
+
+    pur rax
+    push 0
+    je  :ln
+
+    cal :disc
+    pop rdx
+
+    pur  rdx
+    push 0
+
+    jbe :upz
+
+    hlc
+
+
+:ln
+    pur rcx
+    push -1
+    mul
+    pur rbx
+    div
+    out
+
+    hlc
+
+:disc
+    pur rbx
+    pur rbx
+    mul
+
+    push 4
+    push -1
+    pur rax
+    pur rcx
+
+    mul
+    mul
+    mul
+
+    add
+    ret
+
+
+
+:upz
+    pur rbx
+    push -1
+    mul
+
+    pur rdx
+    sqr
+
+    add
+
+    pur rax
+    push 2
+
+    mul
+    div
+
+    out
+
+    pur rbx
+
+    pur rdx
+    sqr
+
+    add
+
+    pur rax
+    push 2
+
+    mul
+    div
+
+    push -1
+    mul
+
+    out
+    hlc
+
+
+

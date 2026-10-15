@@ -165,6 +165,12 @@ const char* my_str_error(const error_code_e error_code) {
         case STAT_READ_ERROR:
             return "STAT READ ERROR: 16";
 
+        case END_OF_FILE:
+            return "END_OF_FILE: 17";
+
+        case INCORRECT_PARAM:
+            return "INCORRECT_PARAM: 18";
+
         case INIT_VALUE:
             return "INIT VALUE: -1";
 

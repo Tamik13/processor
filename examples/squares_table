@@ -1,0 +1,21 @@
+:start
+  push 0
+  pop rax
+
+  :loop
+    pur rax
+    push 1
+    add
+    pop rax
+
+    pur rax
+    pur rax
+    mul
+    out
+
+    pop rbx
+    pur rax
+    push 11
+
+  ja :loop
+  hlc
