@@ -501,8 +501,3 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
         abort();
     }
 }
-
-
-
-
-

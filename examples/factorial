@@ -1,0 +1,35 @@
+:start
+    in
+    pop rcx
+
+    push 0
+    pop rax
+
+    push 1
+    pop rbx
+
+    cal :fact
+
+    hlc
+
+:fact
+    pur rax
+    push 1
+    add
+    pop rax
+
+    pur rbx
+    pur rax
+    mul
+    out
+    pop rbx
+
+    pur rcx
+    pur rax
+    ja :RT
+
+    cal :fact
+
+    :RT
+
+    ret
