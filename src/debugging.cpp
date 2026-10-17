@@ -69,6 +69,19 @@ unsigned long djb2_hash(const unsigned char* str, const size_t size) {
 }
 
 
+unsigned long djb2_str_hash(const unsigned char* str) {
+    assert(str != NULL);
+
+    unsigned long hash = 5381;
+
+    while (*str) {
+        hash = ((hash << 5) + hash) + *str++;
+    }
+
+    return hash;
+}
+
+
 void print_strptr_arr(const char* const arr[], const size_t size) {
     assert(arr != NULL);
 

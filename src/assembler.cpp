@@ -1,9 +1,11 @@
 #include "../includes/debugging.h"
 #include "../includes/commands.h"
 #include <math.h>
+#include <fcntl.h>
 
 const char* const bytecode_file_name = "bytecode";
 const size_t      MAX_COMMAND_LEN    = 30;
+const double      EPSILON  = 1e-6;
 
 struct label_s {
     char*   name;
@@ -17,15 +19,25 @@ struct context_s {
     size_t      capacity;
 };
 
-error_code_e make_bytecode         (context_s* const context);
+struct asm_cmd_s {
+    const char*   name;
+    unsigned long hash;
+    size_t        number;
+};
+
+error_code_e make_bytecode         (context_s* const context, const asm_cmd_s* const commands);
 error_code_e write_in_bytecode_file(const int        command, const double num);
 error_code_e clear_bytecode_file   ();
 
-error_code_e context_init     (context_s* const context, const char* const input_file_name);
-error_code_e labels_table_init(context_s* const context);
-error_code_e context_push     (context_s*       context, label_s label);
-ssize_t      find_label       (context_s* const context, const char* const name);
+error_code_e context_init     (context_s* const  context, const char* const input_file_name);
+error_code_e labels_table_init(context_s* const  context);
+error_code_e context_push     (context_s*        context, label_s           label);
+ssize_t      find_label       (context_s* const  context, const char* const name);
 ssize_t      get_register_num (const char* const name);
+void         comands_init     (asm_cmd_s* const  commands);
+
+ssize_t bin_search(const asm_cmd_s* const commands, const unsigned long hash);
+int     cmd_cmp   (const asm_cmd_s* first_elem, const asm_cmd_s *second_elem);
 
 int main(int argc, char* argv[]) {
 
@@ -37,8 +49,12 @@ int main(int argc, char* argv[]) {
     context_s    context = {};
     context_init(&context, argv[1]);
 
+    asm_cmd_s commands[COMMANDS_CNT] = {};
+    comands_init(commands);
 
-    error_code_e error_code = make_bytecode(&context);
+    qsort(commands, COMMANDS_CNT, sizeof(asm_cmd_s), (int(*) (const void *, const void *))cmd_cmp);
+
+    error_code_e error_code = make_bytecode(&context, commands);
     if (error_code != SUCCESS) {
         PRINT_ERROR(error_code);
         return error_code;
@@ -49,10 +65,11 @@ int main(int argc, char* argv[]) {
 
 
 
-error_code_e make_bytecode(context_s* context) {
-    char         command[MAX_COMMAND_LEN] = "";
-    char         arg[MAX_COMMAND_LEN]     = "";
-    error_code_e error_code               = INIT_VALUE;
+error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) {
+    char          command[MAX_COMMAND_LEN] = "";
+    char          buff[MAX_COMMAND_LEN]    = "";
+    error_code_e  error_code               = INIT_VALUE;
+    double        num                      = NAN;
 
     error_code = clear_bytecode_file();
     if (error_code != SUCCESS) {
@@ -70,285 +87,37 @@ error_code_e make_bytecode(context_s* context) {
 
 
     while (fscanf(input_file, "%s", command) == 1) {
-        if (command[0] == ':') {
-            continue;
+        if (command[0] == ':') continue;
 
-        } else if (strncmp(command, "push",     MAX_COMMAND_LEN) == 0) {
-            double  num = NAN;
+        unsigned long hash    = djb2_str_hash((const unsigned char*)command);
+        ssize_t       cmd_num = bin_search(commands, hash);
+
+        if (cmd_num == PUSH) {
             fscanf(input_file, "%lg", &num);
 
-            error_code = write_in_bytecode_file(PUSH, num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write push\n");
-                return error_code;
+        } else if (PUR <= cmd_num && cmd_num <= POP) {
+            fscanf(input_file, "%s", buff);
+            num  =  get_register_num(buff);
+
+            if (fabs(num + 1) < EPSILON) {
+                return INCORRECT_SIZE; // TODO: printerror
             }
+        } else if (JMP <= cmd_num && cmd_num <= CAL) {
+            fscanf(input_file, "%s",  buff);
+            num = find_label(context, buff);
 
-        } else if (strncmp(command, "pur",      MAX_COMMAND_LEN) == 0) {
-
-            fscanf(input_file,    "%s",    arg);
-            ssize_t reg = get_register_num(arg);
-
-            if (reg == -1) {
-                fprintf(stderr, "Incorrect register: <%s>\n", arg);
-                return INCORRECT_SIZE;
+            if (fabs(num + 1) < EPSILON) {
+                return INCORRECT_SIZE; // TODO: printerror
             }
-
-            error_code = write_in_bytecode_file(PUR, reg);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write pur\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "add",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(ADD, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write add\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "mul",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(MUL, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write multiply\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "div",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(DIV, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write div\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "sqr",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(SQR, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write sqrt\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "sin",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(SIN, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write sin\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "cos",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(COS, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write cos\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "out",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(OUT, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write out\n");
-                return error_code;
-            }
-
-
-        } else if (strncmp(command, "in",       MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(IN, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write in\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "hlc",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(HLC, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write hlc\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "pop",      MAX_COMMAND_LEN) == 0) {
-
-            fscanf(input_file, "%s", arg);
-
-            ssize_t reg = get_register_num(arg);
-            if (reg == -1) {
-                fprintf(stderr, "Incorrect register\n");
-                log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR incorrect register\n");
-                return INCORRECT_SIZE;
-            }
-
-            error_code  = write_in_bytecode_file(POP, reg);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write pop\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "jmp",      MAX_COMMAND_LEN) == 0) {
-
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: %s\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JMP, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jmp\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "jb",       MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JB, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jb\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "ja",       MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JA, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "je",       MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JE, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write je\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "jae",      MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JAE, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jae\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "jbe",      MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JBE, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jbe\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "jne",      MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(JNE, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jne\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "cal",      MAX_COMMAND_LEN) == 0) {
-            fscanf(input_file, "%s", arg);
-            ssize_t line_num = -1;
-            line_num = find_label(context, arg);
-
-            if (line_num == -1) {
-                fprintf(stderr, "Incorrect label: <%s>\n", arg);
-                break;
-            }
-
-            error_code = write_in_bytecode_file(CAL, line_num);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write call\n");
-                return error_code;
-            }
-
-        } else if (strncmp(command, "ret",      MAX_COMMAND_LEN) == 0) {
-
-            error_code = write_in_bytecode_file(RET, NAN);
-            if (error_code != SUCCESS) {
-                fclose(input_file);
-                log_print_error(error_code, "processor_execute_commands: ERROR during write call\n");
-                return error_code;
-            }
-
         } else {
-            fprintf(stderr, "Incorrect command: <%s>\n", command);
-            break;
+            num = NAN;
+        }
+
+        error_code = write_in_bytecode_file((int)cmd_num, num);
+        if (error_code != SUCCESS) {
+            fclose(input_file);
+            log_print_error(error_code, "processor_execute_commands: ERROR during write push\n");
+            return error_code;
         }
     }
 
@@ -363,20 +132,21 @@ error_code_e make_bytecode(context_s* context) {
 
 error_code_e write_in_bytecode_file(const int command, const double num) {
 
-    FILE* bytecode_file = fopen(bytecode_file_name, "a");
+    int bytecode_file = open(bytecode_file_name, O_WRONLY | O_CREAT |  O_APPEND, S_IREAD | S_IWRITE);
 
-    if (bytecode_file == NULL) {
+    if (bytecode_file == -1) {
         log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
         return ERROR_DURING_OPEN;
     }
 
     if (!isnan(num)) {
-        fprintf(bytecode_file ,"%d %lg\n", command, num);
+        write(bytecode_file, &command, sizeof(command)); // TODO: check errors
+        write(bytecode_file, &num,     sizeof(num));
     } else {
-        fprintf(bytecode_file ,"%d\n",     command);
+        write(bytecode_file, &command, sizeof(command));
     }
 
-    if (fclose(bytecode_file) == EOF) {
+    if (close(bytecode_file) == -1) {
         log_print_error(ERROR_DURING_CLOSE, "write_in_bytecode_file: ERROR during close bytecode_file\n");
         return ERROR_DURING_CLOSE;
     }
@@ -386,21 +156,23 @@ error_code_e write_in_bytecode_file(const int command, const double num) {
 
 
 error_code_e clear_bytecode_file() {
-    FILE* bytecode_file = fopen(bytecode_file_name, "w");
+    int bytecode_file = open(bytecode_file_name, O_WRONLY | O_CREAT | O_TRUNC, S_IREAD | S_IWRITE);
+    const char header[] = "bin file with bytecode";
 
-    if (bytecode_file == NULL) {
+    if (bytecode_file == -1) {
         log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
         return ERROR_DURING_OPEN;
     }
 
-    if (fclose(bytecode_file) == EOF) {
+    write(bytecode_file, &header, sizeof(header));
+
+    if (close(bytecode_file) == -1) {
         log_print_error(ERROR_DURING_CLOSE, "write_in_bytecode_file: ERROR during close bytecode_file\n");
         return ERROR_DURING_CLOSE;
     }
 
     return SUCCESS;
 }
-
 
 
 error_code_e context_init(context_s* const context, const char* const input_file_name) {
@@ -529,3 +301,50 @@ ssize_t get_register_num (const char* const name) {
     }
 }
 
+
+void comands_init(asm_cmd_s* const  commands) {
+    assert(commands != NULL);
+
+    const char* const names[COMMANDS_CNT] =  {"nac", "push", "pur",
+    "pop", "add", "mul", "div", "out", "in", "sin",
+    "cos", "sqr", "jmp", "ja",  "jb",  "je", "jae",
+    "jbe", "jne", "cal", "ret", "hlc"};
+
+    for (size_t cmd_num = 0; cmd_num < COMMANDS_CNT; cmd_num++) {
+        commands[cmd_num].name   = names[cmd_num];
+        commands[cmd_num].number = cmd_num;
+        commands[cmd_num].hash   = djb2_str_hash((const unsigned char*)commands[cmd_num].name);
+    }
+}
+
+
+ssize_t bin_search(const asm_cmd_s* const commands, const unsigned long hash) {
+    size_t l = 0, r = COMMANDS_CNT - 1;
+
+    while (l < r) {
+        assert(l <= r);
+        size_t m = (l + r) / 2;
+
+        if (commands[m].hash == hash) {
+            return (ssize_t)commands[m].number;
+        } else if (commands[m].hash < hash) {
+            l = m + 1;
+        } else {
+            r = m - 1;
+        }
+    }
+
+    if (commands[l].hash == hash) {
+        return (ssize_t)commands[l].number;
+    }
+
+    return -1;
+}
+
+
+int cmd_cmp(const asm_cmd_s* first_elem, const asm_cmd_s* second_elem) {
+    assert(first_elem  != NULL);
+    assert(second_elem != NULL);
+
+    return (int)(first_elem->hash - second_elem->hash);
+}

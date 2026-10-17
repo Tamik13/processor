@@ -4,13 +4,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <inttypes.h>
+#include <fcntl.h>
 
 struct command_s {
     commands_e command = NAC;
-    double    value    = NAN;
+    double     value   = NAN;
 };
-
-
 
 struct cpu_s {
     stack_s    stack;
@@ -59,13 +58,14 @@ error_code_e stat_get_size    (const char*  const file_name, size_t* const file_
 
 const stack_element EPSILON  = 1e-6;
 const size_t COUNT_REGISTERS = 8;
+const size_t HEADER_SIZE     = 23;
 
-const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_push_reg}, {processor_pop},  {processor_add},
-                                  {processor_mul},  {processor_div}, {processor_out},  {processor_in},
-                                  {processor_sin},  {processor_cos}, {processor_sqrt}, {processor_jmp},
-                                  {processor_ja},   {processor_jb},  {processor_je},   {processor_jae},
-                                  {processor_jbe},  {processor_jne}, {processor_cal},  {processor_ret},
-                                  {processor_hlc}};
+const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_push_reg}, {processor_pop},
+                                  {processor_add}, {processor_mul},  {processor_div},      {processor_out},
+                                  {processor_in},  {processor_sin},  {processor_cos},      {processor_sqrt},
+                                  {processor_jmp}, {processor_ja},   {processor_jb},       {processor_je},
+                                  {processor_jae}, {processor_jbe},  {processor_jne},      {processor_cal},
+                                  {processor_ret}, {processor_hlc}};
 
 int main() {
     cpu_s        cpu        = {};
@@ -115,6 +115,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
     double       value      = NAN;
     size_t       file_size  = 0;
     error_code_e error_code = INIT_VALUE;
+    char         buffer[HEADER_SIZE]   = "";
 
    error_code = stat_get_size(bytecode_file_name, &file_size);
    if (error_code != SUCCESS) {
@@ -136,17 +137,24 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         return ALLOCATION_ERROR;
     }
 
-    FILE* bytecode_file = fopen(bytecode_file_name, "r");
-    if (bytecode_file == NULL) {
+    int bytecode_file = open(bytecode_file_name, O_RDONLY);
+    if (bytecode_file == -1) {
         log_print_error(ERROR_DURING_OPEN, "processor_load_program: ERROR during open\n");
         return ERROR_DURING_OPEN;
     }
 
-    while (cpu->commands_size < file_size && fscanf(bytecode_file, "%d", &command) == 1) {
+    read(bytecode_file, buffer, HEADER_SIZE);
+
+    while (cpu->commands_size < file_size && read(bytecode_file, &command, sizeof(command))) {
+        if (errno) {
+            log_print_error(ERROR_DURING_READ, "processor_load_program: ERROR during read\n");
+            return ERROR_DURING_READ;
+        }
+
         cpu->commands[cpu->commands_size].command = command;
 
         if ((PUSH <= command && command <= POP) || (JMP <= command && command <= CAL)) {
-            if (fscanf(bytecode_file, "%lg", &value) != 1) {
+            if (read(bytecode_file, &value, sizeof(value)) <= 0) {
                 PRINT_ERROR(INCORRECT_PARAM);
                 return INCORRECT_PARAM;
             }
@@ -156,7 +164,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         cpu->commands_size++;
     }
 
-    if (fclose(bytecode_file) == EOF) {
+    if (close(bytecode_file) == -1) {
         log_print_error(ERROR_DURING_CLOSE, "processor_load_program: ERROR during close\n");
         return ERROR_DURING_CLOSE;
     }
