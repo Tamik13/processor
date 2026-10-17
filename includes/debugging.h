@@ -98,7 +98,8 @@ void start_logs     ();
 void log_print      (const char* const message);
 void log_print_error(error_code_e error,        const char* const message);
 
-unsigned long djb2_hash(const unsigned char* str, const size_t size);
+unsigned long djb2_hash    (const unsigned char* str, const size_t size);
+unsigned long djb2_str_hash(const unsigned char* str);
 
 void $print_strptr_arr(const char* const arr[],       const size_t size);
 void $print_str_matrix(const char* const arr,         const size_t size_x, const size_t size_y);

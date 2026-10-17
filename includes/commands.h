@@ -1,8 +1,8 @@
 enum commands_e {
     NAC  = -1,
-    PUSH = 1,
-    PUR  = 2,
-    POP  = 3,
+    PUSH = 1,   // d
+    PUR  = 2,   // s
+    POP  = 3,   // s
     ADD  = 4,
     MUL  = 5,
     DIV  = 6,
@@ -11,14 +11,16 @@ enum commands_e {
     SIN  = 9,
     COS  = 10,
     SQR  = 11,
-    JMP  = 12,
-    JA   = 13,
-    JB   = 14,
-    JE   = 15,
-    JAE  = 16,
-    JBE  = 17,
-    JNE  = 18,
-    CAL  = 19,
+    JMP  = 12,  // s
+    JA   = 13,  // s
+    JB   = 14,  // s
+    JE   = 15,  // s
+    JAE  = 16,  // s
+    JBE  = 17,  // s
+    JNE  = 18,  // s
+    CAL  = 19,  // s
     RET  = 20,
     HLC  = 21
 };
+
+#define COMMANDS_CNT 22
