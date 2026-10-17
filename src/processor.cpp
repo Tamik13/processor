@@ -7,8 +7,10 @@
 
 struct command_s {
     commands_e command = NAC;
-    double  value_1    = NAN;
+    double    value    = NAN;
 };
+
+
 
 struct cpu_s {
     stack_s    stack;
@@ -19,30 +21,37 @@ struct cpu_s {
     size_t     commands_size;
 };
 
-error_code_e processor_start           (cpu_s*   const cpu);
-error_code_e processor_load_program    (cpu_s*   const cpu,   const char* const bytecode_file_name);
-error_code_e processor_execute_commands(cpu_s*   const cpu);
-error_code_e processor_push            (stack_s* const stack, const stack_element element);
-error_code_e processor_push_reg        (cpu_s*   const cpu,   const size_t reg);
-error_code_e processor_add             (stack_s* const stack);
-error_code_e processor_mul             (stack_s* const stack);
-error_code_e processor_div             (stack_s* const stack);
-error_code_e processor_sqrt            (stack_s* const stack);
-error_code_e processor_sin             (stack_s* const stack);
-error_code_e processor_cos             (stack_s* const stack);
-error_code_e processor_out             (stack_s* const stack);
-error_code_e processor_in              (cpu_s*   const cpu);
-error_code_e processor_pop             (stack_s* const stack, double* const value);
-error_code_e processor_jmp             (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_jb              (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_ja              (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_je              (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_jae             (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_jbe             (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_jne             (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_cal             (cpu_s*   const cpu,   const size_t line_num);
-error_code_e processor_ret             (cpu_s*   const cpu);
-error_code_e processor_hlc             (cpu_s*   const cpu);
+typedef error_code_e(cmd_fun_t)(cpu_s* const);
+
+struct cmd_to_fun_s {
+    cmd_fun_t* const fun;
+};
+
+error_code_e processor_start           (cpu_s* const cpu);
+error_code_e processor_load_program    (cpu_s* const cpu, const char* const bytecode_file_name);
+error_code_e processor_execute_commands(cpu_s* const cpu);
+error_code_e processor_push            (cpu_s* const cpu);
+error_code_e processor_push_reg        (cpu_s* const cpu);
+error_code_e processor_add             (cpu_s* const cpu);
+error_code_e processor_mul             (cpu_s* const cpu);
+error_code_e processor_div             (cpu_s* const cpu);
+error_code_e processor_sqrt            (cpu_s* const cpu);
+error_code_e processor_sin             (cpu_s* const cpu);
+error_code_e processor_cos             (cpu_s* const cpu);
+error_code_e processor_out             (cpu_s* const cpu);
+error_code_e processor_in              (cpu_s* const cpu);
+error_code_e processor_pop             (cpu_s* const cpu);
+error_code_e processor_jmp             (cpu_s* const cpu);
+error_code_e processor_jb              (cpu_s* const cpu);
+error_code_e processor_ja              (cpu_s* const cpu);
+error_code_e processor_je              (cpu_s* const cpu);
+error_code_e processor_jae             (cpu_s* const cpu);
+error_code_e processor_jbe             (cpu_s* const cpu);
+error_code_e processor_jne             (cpu_s* const cpu);
+error_code_e processor_cal             (cpu_s* const cpu);
+error_code_e processor_ret             (cpu_s* const cpu);
+error_code_e processor_hlc             (cpu_s* const cpu);
+error_code_e incorrect_cmd             (cpu_s* const cpu);
 
 void         log_dump_cpu           (cpu_s* const cpu,       const char* const reason);
 error_code_e processor_destroy      (cpu_s* const cpu);
@@ -51,6 +60,12 @@ error_code_e stat_get_size    (const char*  const file_name, size_t* const file_
 const stack_element EPSILON  = 1e-6;
 const size_t COUNT_REGISTERS = 8;
 
+const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_push_reg}, {processor_pop},  {processor_add},
+                                  {processor_mul},  {processor_div}, {processor_out},  {processor_in},
+                                  {processor_sin},  {processor_cos}, {processor_sqrt}, {processor_jmp},
+                                  {processor_ja},   {processor_jb},  {processor_je},   {processor_jae},
+                                  {processor_jbe},  {processor_jne}, {processor_cal},  {processor_ret},
+                                  {processor_hlc}};
 
 int main() {
     cpu_s        cpu        = {};
@@ -135,7 +150,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
                 PRINT_ERROR(INCORRECT_PARAM);
                 return INCORRECT_PARAM;
             }
-            cpu->commands[cpu->commands_size].value_1 = value;
+            cpu->commands[cpu->commands_size].value = value;
         }
 
         cpu->commands_size++;
@@ -162,197 +177,15 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
     for (;cpu->pc < cpu->commands_size; cpu->pc++) {
-        log_dump_cpu(cpu, " ");
-        switch(cpu->commands[cpu->pc].command) {
-        case PUSH:
 
-            error_code = processor_push(&cpu->stack, cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during push\n");
-                return error_code;
-            }
+        if (cpu->commands[cpu->pc].command == HLC) {
             break;
+        }
 
-        case PUR:
-
-            if (0 > cpu->commands[cpu->pc].value_1 || cpu->commands[cpu->pc].value_1 > 8) {
-                log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR incorrect register\n");
-                return INCORRECT_SIZE;
-            }
-
-            error_code = processor_push_reg(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during push reg\n");
-                return error_code;
-            }
-            break;
-
-        case POP:
-
-            error_code = processor_pop(&cpu->stack, &cpu->registers[(size_t)cpu->commands[cpu->pc].value_1]);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during pop\n");
-                return error_code;
-            }
-            break;
-
-        case ADD:
-
-            error_code = processor_add(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during add\n");
-                return error_code;
-            }
-            break;
-
-        case MUL:
-
-            error_code = processor_mul(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during mul\n");
-                return error_code;
-            }
-            break;
-
-        case DIV:
-
-            error_code = processor_div(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during div\n");
-                return error_code;
-            }
-            break;
-
-        case OUT:
-
-            error_code = processor_out(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during out\n");
-                return error_code;
-            }
-            break;
-
-        case IN:
-
-            error_code = processor_in(cpu);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during processor_in\n");
-                return error_code;
-            }
-            break;
-
-        case SIN:
-
-            error_code = processor_sin(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during sin\n");
-                return error_code;
-            }
-            break;
-
-        case COS:
-            error_code = processor_cos(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during cos\n");
-                return error_code;
-            }
-            break;
-
-        case SQR:
-            error_code = processor_sqrt(&cpu->stack);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write sqr\n");
-                return error_code;
-            }
-            break;
-
-        case JMP:
-            error_code = processor_jmp(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write jmp\n");
-                return error_code;
-            }
-            break;
-
-        case JA:
-            error_code = processor_ja(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case JB:
-            error_code = processor_jb(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case JE:
-            error_code = processor_je(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case JAE:
-            error_code = processor_jae(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case JBE:
-            error_code = processor_jbe(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case JNE:
-            error_code = processor_jne(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case CAL:
-
-            error_code = processor_cal(cpu, (size_t)cpu->commands[cpu->pc].value_1);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case RET:
-
-            error_code = processor_ret(cpu);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write ja\n");
-                return error_code;
-            }
-            break;
-
-        case HLC:
-
-            error_code = processor_hlc(cpu);
-            if (error_code != SUCCESS) {
-                log_print_error(error_code, "processor_execute_commands: ERROR during write hlc\n");
-                return error_code;
-            }
-            return SUCCESS;
-
-        case NAC:
-        default:
-            printf("%d" COLOR_TEXT(" Incorrect command ", RED) "%d\n", __LINE__, cpu->commands[cpu->pc].command);
-            return INCORRECT_PARAM;
+        error_code = cmd_funcs[(size_t)cpu->commands[cpu->pc].command].fun(cpu);
+        if (error_code != SUCCESS) {
+            log_print_error(error_code, "processor_execute_commands: ERROR during push\n");
+            return error_code;
         }
     }
 
@@ -360,15 +193,15 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
 }
 
 
-error_code_e processor_push(stack_s* const stack, const stack_element element) {
+error_code_e processor_push(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    if (stack == NULL) {
+    if (cpu == NULL) {
         log_print_error(NULL_PARAM, "add: ERROR null stack ptr\n");
         return NULL_PARAM;
     }
 
-    error_code = stack_push(stack, element);
+    error_code = stack_push(&cpu->stack, cpu->commands[cpu->pc].value);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_push: ERROR during stack_push\n");
         return error_code;
@@ -378,7 +211,7 @@ error_code_e processor_push(stack_s* const stack, const stack_element element) {
 }
 
 
-error_code_e processor_push_reg(cpu_s* const cpu, const size_t reg) {
+error_code_e processor_push_reg(cpu_s* const cpu) {
 
     error_code_e error_code = INIT_VALUE;
 
@@ -387,7 +220,12 @@ error_code_e processor_push_reg(cpu_s* const cpu, const size_t reg) {
         return NULL_PARAM;
     }
 
-    error_code = stack_push(&cpu->stack, cpu->registers[reg]);
+    if (0 > cpu->commands[cpu->pc].value || cpu->commands[cpu->pc].value > COUNT_REGISTERS) {
+        log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR incorrect register\n");
+        return INCORRECT_SIZE;
+    }
+
+    error_code = stack_push(&cpu->stack, cpu->registers[(size_t)cpu->commands[cpu->pc].value]);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_push: ERROR during stack_push\n");
         return error_code;
@@ -397,16 +235,16 @@ error_code_e processor_push_reg(cpu_s* const cpu, const size_t reg) {
 }
 
 
-error_code_e processor_add(stack_s* const stack) {
+error_code_e processor_add(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_add: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 2) {
+    if (cpu->stack.size < 2) {
         log_print_error(INCORRECT_SIZE, "processor_add: ERROR stack->size < 2\n");
         return INCORRECT_SIZE;
     }
@@ -414,19 +252,19 @@ error_code_e processor_add(stack_s* const stack) {
     stack_element  first_elem = 0;
     stack_element second_elem = 0;
 
-    error_code = stack_pop(stack,  &first_elem);
+    error_code = stack_pop(&cpu->stack,  &first_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_add: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_pop(stack, &second_elem);
+    error_code = stack_pop(&cpu->stack, &second_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_add: ERROR during stack_pop(second_elem)\n");
         return error_code;
     }
 
-    error_code = stack_push(stack, first_elem + second_elem);
+    error_code = stack_push(&cpu->stack, first_elem + second_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code,  "processor_add: ERROR during stack_push(first_elem + second_elem)\n");
     }
@@ -435,16 +273,16 @@ error_code_e processor_add(stack_s* const stack) {
 }
 
 
-error_code_e processor_mul(stack_s* const stack) {
+error_code_e processor_mul(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_multiplying: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 2) {
+    if (cpu->stack.size < 2) {
         log_print_error(INCORRECT_SIZE, "processor_multiplying: ERROR stack->size < 2\n");
         return INCORRECT_SIZE;
     }
@@ -452,19 +290,19 @@ error_code_e processor_mul(stack_s* const stack) {
     stack_element  first_elem = 0;
     stack_element second_elem = 0;
 
-    error_code = stack_pop(stack,  &first_elem);
+    error_code = stack_pop(&cpu->stack,  &first_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_multiplying: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_pop(stack, &second_elem);
+    error_code = stack_pop(&cpu->stack, &second_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_multiplying: ERROR during stack_pop(second_elem)\n");
         return error_code;
     }
 
-    error_code = stack_push(stack, first_elem * second_elem);
+    error_code = stack_push(&cpu->stack, first_elem * second_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code,  "processor_multiplying: ERROR during stack_push(first_elem * second_elem)\n");
     }
@@ -473,16 +311,16 @@ error_code_e processor_mul(stack_s* const stack) {
 }
 
 
-error_code_e processor_div(stack_s* const stack) {
+error_code_e processor_div(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_div: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 2) {
+    if (cpu->stack.size < 2) {
         log_print_error(INCORRECT_SIZE, "processor_div: ERROR stack->size < 2\n");
         return INCORRECT_SIZE;
     }
@@ -490,23 +328,23 @@ error_code_e processor_div(stack_s* const stack) {
     stack_element  first_elem = 0;
     stack_element second_elem = 0;
 
-    error_code = stack_pop(stack,  &first_elem);
+    error_code = stack_pop(&cpu->stack,  &first_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_div: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_pop(stack, &second_elem);
+    error_code = stack_pop(&cpu->stack, &second_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_div: ERROR during stack_pop(second_elem)\n");
         return error_code;
     }
 
-    if (fabs(second_elem) <= EPSILON) {
+    if (fabs(first_elem) <= EPSILON) {
         return DIVISION_BY_ZERO;
     }
 
-    error_code = stack_push(stack,  second_elem / first_elem);
+    error_code = stack_push(&cpu->stack,  second_elem / first_elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code,  "processor_div: ERROR during stack_push(first_elem / second_elem)\n");
     }
@@ -515,29 +353,29 @@ error_code_e processor_div(stack_s* const stack) {
 }
 
 
-error_code_e processor_sqrt(stack_s* const stack) {
+error_code_e processor_sqrt(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sqrt: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 1) {
+    if (cpu->stack.size < 1) {
         log_print_error(INCORRECT_SIZE, "processor_sqrt: ERROR stack->size < 1\n");
         return INCORRECT_SIZE;
     }
 
     stack_element elem = 0;
 
-    error_code = stack_pop(stack,  &elem);
+    error_code = stack_pop(&cpu->stack,  &elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sqrt: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_push(stack, sqrt(elem));
+    error_code = stack_push(&cpu->stack, sqrt(elem));
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sqrt: ERROR during stack_push(sqrt(elem))\n");
     }
@@ -546,29 +384,29 @@ error_code_e processor_sqrt(stack_s* const stack) {
 }
 
 
-error_code_e processor_sin(stack_s* const stack) {
+error_code_e processor_sin(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sin: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 1) {
+    if (cpu->stack.size < 1) {
         log_print_error(INCORRECT_SIZE, "processor_sin: ERROR stack->size < 1\n");
         return INCORRECT_SIZE;
     }
 
     stack_element elem = 0;
 
-    error_code = stack_pop(stack,  &elem);
+    error_code = stack_pop(&cpu->stack,  &elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sin: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_push(stack, sin(elem * M_PI / 180.0));
+    error_code = stack_push(&cpu->stack, sin(elem * M_PI / 180.0));
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sin: ERROR during stack_push(sin(elem))\n");
     }
@@ -577,29 +415,29 @@ error_code_e processor_sin(stack_s* const stack) {
 }
 
 
-error_code_e processor_cos(stack_s* const stack) {
+error_code_e processor_cos(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_cos: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 1) {
+    if (cpu->stack.size < 1) {
         log_print_error(INCORRECT_SIZE, "processor_cos: ERROR stack->size < 1\n");
         return INCORRECT_SIZE;
     }
 
     stack_element elem = 0;
 
-    error_code = stack_pop(stack,  &elem);
+    error_code = stack_pop(&cpu->stack,  &elem);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_cos: ERROR during stack_pop(first_elem)\n");
         return error_code;
     }
 
-    error_code = stack_push(stack, cos(elem * M_PI / 180.0));
+    error_code = stack_push(&cpu->stack, cos(elem * M_PI / 180.0));
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_cos: ERROR during stack_push(cos(elem))\n");
     }
@@ -608,20 +446,20 @@ error_code_e processor_cos(stack_s* const stack) {
 }
 
 
-error_code_e processor_out(stack_s* const stack) {
+error_code_e processor_out(cpu_s* const cpu) {
 
-    error_code_e error_code = stack_verify(stack);
+    error_code_e error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_out: ERROR during stack verify\n");
         return error_code;
     }
 
-    if (stack->size < 1) {
+    if (cpu->stack.size < 1) {
         printf("Stack is void\n");
         return SUCCESS;
     }
 
-    printf("%lg\n", stack->data[stack->size - 1]);
+    printf("%lg\n", cpu->stack.data[cpu->stack.size - 1]);
 
     return SUCCESS;
 }
@@ -643,39 +481,42 @@ error_code_e processor_in(cpu_s* const cpu) {
 }
 
 
-error_code_e processor_pop(stack_s* const stack, double* const value) {
+error_code_e processor_pop(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
+    double value = NAN;
 
-    error_code = stack_verify(stack);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_pop: ERROR during stack_verify\n");
         return error_code;
     }
 
-    if (stack->size < 1) {
+    if (cpu->stack.size < 1) {
         log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
         return INCORRECT_SIZE;
     }
 
-    error_code = stack_pop(stack, value);
+    error_code = stack_pop(&cpu->stack, &value);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
     }
 
+    cpu->registers[(size_t)cpu->commands[cpu->pc].value] = value;
+
     return SUCCESS;
 }
 
 
-error_code_e processor_jmp(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_jmp(cpu_s* const cpu) {
     assert(cpu != NULL);
 
-    cpu->pc = line_num - 1;
+    cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
 
     return SUCCESS;
 }
 
 
-error_code_e processor_jb(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_jb(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -700,14 +541,14 @@ error_code_e processor_jb(cpu_s* const cpu, size_t line_num) {
     }
 
     if (first_elem < second_elem) {
-        cpu->pc = line_num - 1;
+        cpu->pc =  (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_ja(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_ja(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -732,14 +573,14 @@ error_code_e processor_ja(cpu_s* const cpu, size_t line_num) {
     }
 
     if (first_elem > second_elem) {
-        cpu->pc = line_num - 1;
+        cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_je(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_je(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -764,14 +605,14 @@ error_code_e processor_je(cpu_s* const cpu, size_t line_num) {
     }
 
     if (fabs(first_elem - second_elem) < EPSILON) {
-        cpu->pc = line_num - 1;
+        cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_jae(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_jae(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -796,14 +637,14 @@ error_code_e processor_jae(cpu_s* const cpu, size_t line_num) {
     }
 
     if (first_elem >= second_elem) {
-        cpu->pc = line_num - 1;
+        cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_jbe(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_jbe(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -828,14 +669,14 @@ error_code_e processor_jbe(cpu_s* const cpu, size_t line_num) {
     }
 
     if (first_elem <= second_elem) {
-        cpu->pc = line_num - 1;
+        cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_jne(cpu_s* const cpu, size_t line_num) {
+error_code_e processor_jne(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
 
@@ -860,18 +701,18 @@ error_code_e processor_jne(cpu_s* const cpu, size_t line_num) {
     }
 
     if (fabs(first_elem - second_elem) > EPSILON) {
-        cpu->pc = line_num - 1;
+        cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
     }
 
     return SUCCESS;
 }
 
 
-error_code_e processor_cal(cpu_s* const cpu, const size_t line_num) {
+error_code_e processor_cal(cpu_s* const cpu) {
     assert(cpu != NULL);
 
     stack_push(&cpu->ret_ln, cpu->pc + 1);
-    cpu->pc = line_num - 1;
+    cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
 
     return SUCCESS;
 }
@@ -898,6 +739,13 @@ error_code_e processor_hlc(cpu_s* const cpu) {
     }
 
     return SUCCESS;
+}
+
+
+error_code_e incorrect_cmd(cpu_s* const cpu) {
+    assert(cpu != NULL);
+
+    return INCORRECT_PARAM;
 }
 
 
@@ -959,7 +807,7 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
         fprintf(log_file, "\t\t[%zu] = %" SCNu8, ind, cpu->commands[ind].command);
 
         if ((PUSH <= cpu->commands[ind].command && cpu->commands[ind].command <= POP) || (JMP <= cpu->commands[ind].command && cpu->commands[ind].command <= CAL)) {
-            fprintf(log_file, " %lg", cpu->commands[ind].value_1);
+            fprintf(log_file, " %lg", cpu->commands[ind].value);
         }
 
         if (ind == cpu->pc) {
