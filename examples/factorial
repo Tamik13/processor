@@ -26,7 +26,7 @@
 
     pur rcx
     pur rax
-    ja :RT
+    jae :RT
 
     cal :fact
 
