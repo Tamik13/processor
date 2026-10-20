@@ -1,21 +1,23 @@
 :start
   push 0
   pop rax
+  in
+  pop rdx
 
   :loop
-    pur rax
+    push rax
     push 1
     add
     pop rax
 
-    pur rax
-    pur rax
+    push rax
+    push rax
     mul
     out
 
-    pop rbx
-    pur rax
-    push 11
+    pop  rbx
+    push rax
+    push rdx
 
   ja :loop
   hlc

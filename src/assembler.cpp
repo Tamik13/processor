@@ -3,6 +3,10 @@
 #include <math.h>
 #include <fcntl.h>
 
+#define INCORRECT_COMMAND(cmd, line)  fprintf(stderr, COLOR_TEXT("INCORRECT COMMAND ON",  RED_C) " %zu: <%s>\n", line, cmd);
+#define INCORRECT_REGISTER(reg, line) fprintf(stderr, COLOR_TEXT("INCORRECT REGISTER ON", RED_C) " %zu: <%s>\n", line, reg);
+#define INCORRECT_LABEL(label, line)  fprintf(stderr, COLOR_TEXT("INCORRECT LABEL ON",    RED_C) " %zu: <%s>\n", line, label);
+
 const char* const bytecode_file_name = "bytecode";
 const size_t      MAX_COMMAND_LEN    = 30;
 const double      EPSILON  = 1e-6;
@@ -26,7 +30,7 @@ struct asm_cmd_s {
 };
 
 error_code_e make_bytecode         (context_s* const context, const asm_cmd_s* const commands);
-error_code_e write_in_bytecode_file(const int        command, const double num);
+error_code_e write_in_bytecode_file(const command_s  command, const double num);
 error_code_e clear_bytecode_file   ();
 
 error_code_e context_init     (context_s* const  context, const char* const input_file_name);
@@ -36,15 +40,18 @@ ssize_t      find_label       (context_s* const  context, const char* const name
 ssize_t      get_register_num (const char* const name);
 void         comands_init     (asm_cmd_s* const  commands);
 
-ssize_t bin_search(const asm_cmd_s* const commands, const unsigned long hash);
-int     cmd_cmp   (const asm_cmd_s* first_elem, const asm_cmd_s *second_elem);
+size_t bin_search(const asm_cmd_s* const commands, const unsigned long hash);
+int    cmd_cmp   (const asm_cmd_s* first_elem, const asm_cmd_s *second_elem);
+char*  int_to_str(const int        num);
 
 int main(int argc, char* argv[]) {
 
     if (argc == 1) {
-        printf(COLOR_TEXT("The compiled file is not specified\n", RED));
+        printf(COLOR_TEXT("The compiled file is not specified\n", RED_C));
         return 1;
     }
+
+    start_logs();
 
     context_s    context = {};
     context_init(&context, argv[1]);
@@ -56,7 +63,6 @@ int main(int argc, char* argv[]) {
 
     error_code_e error_code = make_bytecode(&context, commands);
     if (error_code != SUCCESS) {
-        PRINT_ERROR(error_code);
         return error_code;
     }
 
@@ -69,7 +75,8 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
     char          command[MAX_COMMAND_LEN] = "";
     char          buff[MAX_COMMAND_LEN]    = "";
     error_code_e  error_code               = INIT_VALUE;
-    double        num                      = NAN;
+    double        val                      = NAN;
+    size_t        line                     = 0;
 
     error_code = clear_bytecode_file();
     if (error_code != SUCCESS) {
@@ -87,33 +94,61 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
 
 
     while (fscanf(input_file, "%s", command) == 1) {
+        line++;
         if (command[0] == ':') continue;
 
-        unsigned long hash    = djb2_str_hash((const unsigned char*)command);
-        ssize_t       cmd_num = bin_search(commands, hash);
+        unsigned long hash = djb2_str_hash((const unsigned char*)command);
+        command_s     cmd  = {};
+        cmd.num            = (unsigned char)bin_search(commands, hash);
 
-        if (cmd_num == PUSH) {
-            fscanf(input_file, "%lg", &num);
-
-        } else if (PUR <= cmd_num && cmd_num <= POP) {
-            fscanf(input_file, "%s", buff);
-            num  =  get_register_num(buff);
-
-            if (fabs(num + 1) < EPSILON) {
-                return INCORRECT_SIZE; // TODO: printerror
-            }
-        } else if (JMP <= cmd_num && cmd_num <= CAL) {
-            fscanf(input_file, "%s",  buff);
-            num = find_label(context, buff);
-
-            if (fabs(num + 1) < EPSILON) {
-                return INCORRECT_SIZE; // TODO: printerror
-            }
-        } else {
-            num = NAN;
+        if (cmd.num == 0) {
+            INCORRECT_COMMAND(command, line)
+            return INCORRECT_PARAM;
         }
 
-        error_code = write_in_bytecode_file((int)cmd_num, num);
+        if (cmd.num == PUSH || cmd.num == POP) {
+
+            if (fscanf(input_file, "%lg", &val) == 1) {
+                cmd.konst = 1;
+            } else if (fscanf(input_file, "[%29[^]]]", buff) > 0) {
+                val     = get_register_num(buff);
+                cmd.ram = 1;
+
+                if (fabs(val + 1) < EPSILON) {
+                    INCORRECT_REGISTER(buff, line)
+                    return INCORRECT_SIZE;
+                }
+
+            } else if (fscanf(input_file, "%s", buff) > 0) {
+
+                val     = get_register_num(buff);
+                cmd.reg = 1;
+
+                if (fabs(val + 1) < EPSILON) {
+                    INCORRECT_REGISTER(buff, line)
+                    return INCORRECT_SIZE;
+                }
+
+            } else {
+                INCORRECT_COMMAND(command, line)
+                return INCORRECT_PARAM;
+            }
+
+        } else if (JMP <= cmd.num && cmd.num <= CAL) {
+
+            fscanf(input_file, "%s",  buff);
+            val = find_label(context, buff);
+
+            if (fabs(val + 1) < EPSILON) {
+                INCORRECT_LABEL(buff, line)
+                return INCORRECT_SIZE;
+            }
+
+        } else {
+            val = NAN;
+        }
+
+        error_code = write_in_bytecode_file(cmd, val);
         if (error_code != SUCCESS) {
             fclose(input_file);
             log_print_error(error_code, "processor_execute_commands: ERROR during write push\n");
@@ -130,7 +165,7 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
 }
 
 
-error_code_e write_in_bytecode_file(const int command, const double num) {
+error_code_e write_in_bytecode_file(const command_s command, const double num) {
 
     int bytecode_file = open(bytecode_file_name, O_WRONLY | O_CREAT |  O_APPEND, S_IREAD | S_IWRITE);
 
@@ -296,7 +331,6 @@ ssize_t get_register_num (const char* const name) {
         return 4;
 
     } else {
-        fprintf(stderr, "Incorrect register: <%s>\n", name);
         return -1;
     }
 }
@@ -305,10 +339,10 @@ ssize_t get_register_num (const char* const name) {
 void comands_init(asm_cmd_s* const  commands) {
     assert(commands != NULL);
 
-    const char* const names[COMMANDS_CNT] =  {"nac", "push", "pur",
+    const char* const names[COMMANDS_CNT] =  {"nac", "push",
     "pop", "add", "mul", "div", "out", "in", "sin",
     "cos", "sqr", "jmp", "ja",  "jb",  "je", "jae",
-    "jbe", "jne", "cal", "ret", "hlc"};
+    "jbe", "jne", "cal", "ret", "dmp", "hlc"};
 
     for (size_t cmd_num = 0; cmd_num < COMMANDS_CNT; cmd_num++) {
         commands[cmd_num].name   = names[cmd_num];
@@ -318,15 +352,15 @@ void comands_init(asm_cmd_s* const  commands) {
 }
 
 
-ssize_t bin_search(const asm_cmd_s* const commands, const unsigned long hash) {
-    size_t l = 0, r = COMMANDS_CNT - 1;
+size_t bin_search(const asm_cmd_s* const commands, const unsigned long hash) {
+    ssize_t l = 0, r = COMMANDS_CNT - 1;
 
     while (l < r) {
         assert(l <= r);
-        size_t m = (l + r) / 2;
+        ssize_t m = (l + r) / 2;
 
         if (commands[m].hash == hash) {
-            return (ssize_t)commands[m].number;
+            return (size_t)commands[m].number;
         } else if (commands[m].hash < hash) {
             l = m + 1;
         } else {
@@ -335,10 +369,10 @@ ssize_t bin_search(const asm_cmd_s* const commands, const unsigned long hash) {
     }
 
     if (commands[l].hash == hash) {
-        return (ssize_t)commands[l].number;
+        return (size_t)commands[l].number;
     }
 
-    return -1;
+    return 0;
 }
 
 
@@ -346,5 +380,5 @@ int cmd_cmp(const asm_cmd_s* first_elem, const asm_cmd_s* second_elem) {
     assert(first_elem  != NULL);
     assert(second_elem != NULL);
 
-    return (int)(first_elem->hash - second_elem->hash);
+    return (first_elem->hash > second_elem->hash) - (first_elem->hash < second_elem->hash);
 }
