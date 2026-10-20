@@ -13,19 +13,19 @@
     hlc
 
 :fact
-    pur rax
+    push rax
     push 1
     add
     pop rax
 
-    pur rbx
-    pur rax
+    push rbx
+    push rax
     mul
     out
     pop rbx
 
-    pur rcx
-    pur rax
+    push rcx
+    push rax
     jae :RT
 
     cal :fact

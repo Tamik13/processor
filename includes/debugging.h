@@ -6,19 +6,19 @@
 #include <time.h>
 
 #define PRINT_ERROR(error)    \
-    fprintf(stderr, "%s:%d " COLOR_TEXT("ERROR CODE: ", RED) "%s   " COLOR_TEXT("ERRNO: ", RED) "%s  %s\n",  __FILE__, __LINE__, my_str_error(error), strerror(errno), __FUNCTION__);
+    fprintf(stderr, "%s:%d " COLOR_TEXT("ERROR CODE: ", RED_C) "%s   " COLOR_TEXT("ERRNO: ", RED_C) "%s  %s\n",  __FILE__, __LINE__, my_str_error(error), strerror(errno), __FUNCTION__);
 
 #define ASSERT_FOR_ARR(ind, size) assert(0 <= (size_t)ind && (size_t)ind < (size_t)size);
 
-#define $ANCHOR         fprintf(stderr, "%s:%d " COLOR_TEXT("ANCHOR",         VIOLET) " %s\n", __FILE__, __LINE__, __FUNCTION__);
-#define $START_FUNCTION fprintf(stderr, "%s:%d " COLOR_TEXT("START FUNCTION", BLUE)   " %s\n", __FILE__, __LINE__, __FUNCTION__);
-#define $END_FUNCTION   fprintf(stderr, "%s:%d " COLOR_TEXT("END FUNCTION",   YELLOW) " %s\n", __FILE__, __LINE__, __FUNCTION__);
+#define $ANCHOR         fprintf(stderr, "%s:%d " COLOR_TEXT("ANCHOR",         VIOLET_C) " %s\n", __FILE__, __LINE__, __FUNCTION__);
+#define $START_FUNCTION fprintf(stderr, "%s:%d " COLOR_TEXT("START FUNCTION", BLUE_C)   " %s\n", __FILE__, __LINE__, __FUNCTION__);
+#define $END_FUNCTION   fprintf(stderr, "%s:%d " COLOR_TEXT("END FUNCTION",   YELLOW_C) " %s\n", __FILE__, __LINE__, __FUNCTION__);
 
 #define $PRINT_STR_ARR(arr, size)                                                                   \
     assert(arr != NULL);                                                                            \
     $ANCHOR                                                                                         \
                                                                                                     \
-    printf(COLOR_TEXT("%s:%d " #arr " %s", VIOLET) "\n", __FILE__,  __LINE__, __FUNCTION__);        \
+    printf(COLOR_TEXT("%s:%d " #arr " %s", VIOLET_C) "\n", __FILE__,  __LINE__, __FUNCTION__);        \
     print_str_matrix(arr, size);                                                                    \
     getchar();                                                                                      \
                                                                                                     \
@@ -30,7 +30,7 @@
                                                                                                     \
     for (size_t x = 0; x < size; x++) {                                                             \
         ASSERT_FOR_ARR(x, size);                                                                    \
-        fprintf(stderr, COLOR_TEXT(#arr, VIOLET) "[%zu] = %p\n", x, ((void**)arr)[x]);              \
+        fprintf(stderr, COLOR_TEXT(#arr, VIOLET_C) "[%zu] = %p\n", x, ((void**)arr)[x]);              \
     }                                                                                               \
                                                                                                     \
     printf("\n");
@@ -42,30 +42,30 @@
     for (size_t x = 0; x < size; x++) {                                                             \
         ASSERT_FOR_ARR(x, size);                                                                    \
                                                                                                     \
-        fprintf(stderr, COLOR_TEXT(#int_arr, VIOLET) "[%zu] = %d\n", x, *((int**)int_arr)[x]);      \
+        fprintf(stderr, COLOR_TEXT(#int_arr, VIOLET_C) "[%zu] = %d\n", x, *((int**)int_arr)[x]);      \
     }                                                                                               \
                                                                                                     \
     fprintf(stderr, "\n");
 
-#define RED    "91"
-#define GREEN  "92"
-#define BLUE   "94"
-#define YELLOW "33"
-#define VIOLET "35"
+#define RED_C    "91"
+#define GREEN_C  "92"
+#define BLUE_C   "94"
+#define YELLOW_C "33"
+#define VIOLET_C "35"
 
 #define COLOR_TEXT(STR, COLOR)  "\033[" COLOR "m" STR "\033[0m"
 #define COLOR_TEXT_START(COLOR) "\033[" COLOR "m"
 #define COLOR_TEXT_END          "\033[0m"
 
-#define $int(num)     fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %d\n\n",       num)
-#define $double(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lg\n\n",      num)
-#define $luint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lu\n\n",      num)
-#define $llint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %lld\n\n",     num)
-#define $uint(num)    fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %u\n\n",       num)
-#define $char(symbol) fprintf(stderr, COLOR_TEXT(#symbol, VIOLET) " = <%c>, %d\n\n", symbol, symbol)
-#define $string(str)  fprintf(stderr, COLOR_TEXT(#str,    VIOLET) " = <%s>\n\n",     str)
-#define $size_t(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET) " = %zu\n\n",      num)
-#define $ptr(ptr)     fprintf(stderr, COLOR_TEXT(#ptr,    VIOLET) " = %p\n\n",       ptr)
+#define $int(num)     fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %d\n\n",       num)
+#define $double(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %lg\n\n",      num)
+#define $luint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %lu\n\n",      num)
+#define $llint(num)   fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %lld\n\n",     num)
+#define $uint(num)    fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %u\n\n",       num)
+#define $char(symbol) fprintf(stderr, COLOR_TEXT(#symbol, VIOLET_C) " = <%c>, %d\n\n", symbol, symbol)
+#define $string(str)  fprintf(stderr, COLOR_TEXT(#str,    VIOLET_C) " = <%s>\n\n",     str)
+#define $size_t(num)  fprintf(stderr, COLOR_TEXT(#num,    VIOLET_C) " = %zu\n\n",      num)
+#define $ptr(ptr)     fprintf(stderr, COLOR_TEXT(#ptr,    VIOLET_C) " = %p\n\n",       ptr)
 #define $(param)      $ANCHOR _$(param);
 
 enum error_code_e {

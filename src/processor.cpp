@@ -3,12 +3,17 @@
 #include <math.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <inttypes.h>
 #include <fcntl.h>
+#include "raylib.h"
 
-struct command_s {
-    commands_e command = NAC;
-    double     value   = NAN;
+const double EPSILON         = 1e-6;
+const size_t COUNT_REGISTERS = 8;
+const size_t HEADER_SIZE     = 23;
+const size_t RAM_SIZE        = 121;
+
+struct cmd_val_s {
+    command_s command;
+    double    value;
 };
 
 struct cpu_s {
@@ -16,8 +21,9 @@ struct cpu_s {
     stack_s    ret_ln;
     double*    registers;
     size_t     pc;
-    command_s* commands;
+    cmd_val_s* commands;
     size_t     commands_size;
+    unsigned char* ram;
 };
 
 typedef error_code_e(cmd_fun_t)(cpu_s* const);
@@ -30,7 +36,7 @@ error_code_e processor_start           (cpu_s* const cpu);
 error_code_e processor_load_program    (cpu_s* const cpu, const char* const bytecode_file_name);
 error_code_e processor_execute_commands(cpu_s* const cpu);
 error_code_e processor_push            (cpu_s* const cpu);
-error_code_e processor_push_reg        (cpu_s* const cpu);
+error_code_e processor_pop             (cpu_s* const cpu);
 error_code_e processor_add             (cpu_s* const cpu);
 error_code_e processor_mul             (cpu_s* const cpu);
 error_code_e processor_div             (cpu_s* const cpu);
@@ -39,7 +45,6 @@ error_code_e processor_sin             (cpu_s* const cpu);
 error_code_e processor_cos             (cpu_s* const cpu);
 error_code_e processor_out             (cpu_s* const cpu);
 error_code_e processor_in              (cpu_s* const cpu);
-error_code_e processor_pop             (cpu_s* const cpu);
 error_code_e processor_jmp             (cpu_s* const cpu);
 error_code_e processor_jb              (cpu_s* const cpu);
 error_code_e processor_ja              (cpu_s* const cpu);
@@ -49,23 +54,21 @@ error_code_e processor_jbe             (cpu_s* const cpu);
 error_code_e processor_jne             (cpu_s* const cpu);
 error_code_e processor_cal             (cpu_s* const cpu);
 error_code_e processor_ret             (cpu_s* const cpu);
+error_code_e processor_dmp             (cpu_s* const cpu);
 error_code_e processor_hlc             (cpu_s* const cpu);
 error_code_e incorrect_cmd             (cpu_s* const cpu);
 
-void         log_dump_cpu           (cpu_s* const cpu,       const char* const reason);
-error_code_e processor_destroy      (cpu_s* const cpu);
+void         log_dump_cpu     (cpu_s* const cpu,       const char* const reason);
+void         dump_ram         (cpu_s* const cpu);
+error_code_e processor_destroy(cpu_s* const cpu);
 error_code_e stat_get_size    (const char*  const file_name, size_t* const file_size);
 
-const stack_element EPSILON  = 1e-6;
-const size_t COUNT_REGISTERS = 8;
-const size_t HEADER_SIZE     = 23;
-
-const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_push_reg}, {processor_pop},
+const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_pop},
                                   {processor_add}, {processor_mul},  {processor_div},      {processor_out},
                                   {processor_in},  {processor_sin},  {processor_cos},      {processor_sqrt},
                                   {processor_jmp}, {processor_ja},   {processor_jb},       {processor_je},
                                   {processor_jae}, {processor_jbe},  {processor_jne},      {processor_cal},
-                                  {processor_ret}, {processor_hlc}};
+                                  {processor_ret}, {processor_dmp},  {processor_hlc}};
 
 int main() {
     cpu_s        cpu        = {};
@@ -105,32 +108,41 @@ error_code_e processor_start(cpu_s* const cpu) {
     cpu->pc            = 0;
     cpu->commands_size = 0;
     cpu->commands      = NULL;
+    cpu->ram           = (unsigned char*)calloc(RAM_SIZE, sizeof(unsigned char));
+
+    if (cpu->registers == NULL) {
+        log_print_error(ALLOCATION_ERROR, "processor_start: ERROR during calloc registers\n");
+        return ALLOCATION_ERROR;
+    }
+
+    if (cpu->ram == NULL) {
+        log_print_error(ALLOCATION_ERROR, "processor_start: ERROR during calloc ram\n");
+        return ALLOCATION_ERROR;
+    }
 
     return SUCCESS;
 }
 
 
 error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode_file_name) {
-    commands_e   command    = NAC;
+    command_s    command    = {};
     double       value      = NAN;
     size_t       file_size  = 0;
     error_code_e error_code = INIT_VALUE;
     char         buffer[HEADER_SIZE]   = "";
 
-   error_code = stat_get_size(bytecode_file_name, &file_size);
-   if (error_code != SUCCESS) {
+    error_code = stat_get_size(bytecode_file_name, &file_size);
+    if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_load_program: ERROR during get_stat_size\n");
         return error_code;
-   }
-
-   file_size *= 8;
+    }
 
     if (file_size == 0) {
         log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR void file\n");
         return ALLOCATION_ERROR;
     }
 
-    cpu->commands = (command_s*)calloc(file_size, sizeof(command_s));
+    cpu->commands = (cmd_val_s*)calloc(file_size, sizeof(cmd_val_s));
 
     if (cpu->commands == NULL) {
         log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during allocation\n");
@@ -143,17 +155,18 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         return ERROR_DURING_OPEN;
     }
 
-    read(bytecode_file, buffer, HEADER_SIZE);
+    ssize_t bytes_read = read(bytecode_file, buffer, HEADER_SIZE);
 
-    while (cpu->commands_size < file_size && read(bytecode_file, &command, sizeof(command))) {
-        if (errno) {
+    while (cpu->commands_size < file_size && (bytes_read = read(bytecode_file, &command, sizeof(command))) ) {
+        if (bytes_read == -1) {
             log_print_error(ERROR_DURING_READ, "processor_load_program: ERROR during read\n");
             return ERROR_DURING_READ;
         }
 
+
         cpu->commands[cpu->commands_size].command = command;
 
-        if ((PUSH <= command && command <= POP) || (JMP <= command && command <= CAL)) {
+        if ((PUSH <= command.num && command.num <= POP) || (JMP <= command.num && command.num <= CAL)) {
             if (read(bytecode_file, &value, sizeof(value)) <= 0) {
                 PRINT_ERROR(INCORRECT_PARAM);
                 return INCORRECT_PARAM;
@@ -169,7 +182,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         return ERROR_DURING_CLOSE;
     }
 
-    command_s* reduced_commands = (command_s*)realloc(cpu->commands, sizeof(command_s) * cpu->commands_size);
+    cmd_val_s* reduced_commands = (cmd_val_s*)realloc(cpu->commands, sizeof(cmd_val_s) * cpu->commands_size);
     if (reduced_commands == NULL) {
         log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during recalloc\n");
         return ALLOCATION_ERROR;
@@ -185,12 +198,13 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
     for (;cpu->pc < cpu->commands_size; cpu->pc++) {
+        log_dump_cpu(cpu, "");
 
-        if (cpu->commands[cpu->pc].command == HLC) {
+        if (cpu->commands[cpu->pc].command.num == HLC) {
             break;
         }
 
-        error_code = cmd_funcs[(size_t)cpu->commands[cpu->pc].command].fun(cpu);
+        error_code = cmd_funcs[(size_t)cpu->commands[cpu->pc].command.num].fun(cpu);
         if (error_code != SUCCESS) {
             log_print_error(error_code, "processor_execute_commands: ERROR during push\n");
             return error_code;
@@ -203,13 +217,26 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
 
 error_code_e processor_push(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
+    double       value      = 0;
 
     if (cpu == NULL) {
         log_print_error(NULL_PARAM, "add: ERROR null stack ptr\n");
         return NULL_PARAM;
     }
 
-    error_code = stack_push(&cpu->stack, cpu->commands[cpu->pc].value);
+    if (cpu->commands[cpu->pc].command.konst) {
+        value += cpu->commands[cpu->pc].value;
+    }
+
+    if (cpu->commands[cpu->pc].command.reg) {
+        value += cpu->registers[(size_t)cpu->commands[cpu->pc].value];
+    }
+
+    if (cpu->commands[cpu->pc].command.ram) {
+        value += cpu->ram[(size_t)cpu->commands[cpu->pc].value];
+    }
+
+    error_code = stack_push(&cpu->stack, value);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_push: ERROR during stack_push\n");
         return error_code;
@@ -219,24 +246,53 @@ error_code_e processor_push(cpu_s* const cpu) {
 }
 
 
-error_code_e processor_push_reg(cpu_s* const cpu) {
-
+error_code_e processor_pop(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
+    double value = NAN;
 
-    if (cpu == NULL) {
-        log_print_error(NULL_PARAM, "add: ERROR null cpu ptr\n");
-        return NULL_PARAM;
-    }
-
-    if (0 > cpu->commands[cpu->pc].value || cpu->commands[cpu->pc].value > COUNT_REGISTERS) {
-        log_print_error(INCORRECT_SIZE, "processor_execute_commands: ERROR incorrect register\n");
-        return INCORRECT_SIZE;
-    }
-
-    error_code = stack_push(&cpu->stack, cpu->registers[(size_t)cpu->commands[cpu->pc].value]);
+    error_code = stack_verify(&cpu->stack);
     if (error_code != SUCCESS) {
-        log_print_error(error_code, "processor_push: ERROR during stack_push\n");
+        log_print_error(error_code, "processor_pop: ERROR during stack_verify\n");
         return error_code;
+    }
+
+    if (cpu->commands[cpu->pc].command.konst) {
+        if (cpu->stack.size < 1) {
+            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
+            return INCORRECT_SIZE;
+        }
+
+        error_code = stack_pop(&cpu->stack, &value);
+        if (error_code != SUCCESS) {
+            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
+        }
+    }
+
+    if (cpu->commands[cpu->pc].command.reg) {
+        if (cpu->stack.size < 1) {
+            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
+            return INCORRECT_SIZE;
+        }
+
+        error_code = stack_pop(&cpu->stack, &value);
+        if (error_code != SUCCESS) {
+            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
+        }
+        cpu->registers[(size_t)cpu->commands[cpu->pc].value] = value;
+    }
+
+    if (cpu->commands[cpu->pc].command.ram) {
+
+        if (cpu->stack.size < 1) {
+            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
+            return INCORRECT_SIZE;
+        }
+
+        error_code = stack_pop(&cpu->stack, &value);
+        if (error_code != SUCCESS) {
+            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
+        }
+        cpu->ram[(size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value]] = (unsigned char)value;
     }
 
     return SUCCESS;
@@ -414,7 +470,7 @@ error_code_e processor_sin(cpu_s* const cpu) {
         return error_code;
     }
 
-    error_code = stack_push(&cpu->stack, sin(elem * M_PI / 180.0));
+    error_code = stack_push(&cpu->stack, sin(elem));
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_sin: ERROR during stack_push(sin(elem))\n");
     }
@@ -445,7 +501,7 @@ error_code_e processor_cos(cpu_s* const cpu) {
         return error_code;
     }
 
-    error_code = stack_push(&cpu->stack, cos(elem * M_PI / 180.0));
+    error_code = stack_push(&cpu->stack, cos(elem));
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_cos: ERROR during stack_push(cos(elem))\n");
     }
@@ -484,32 +540,6 @@ error_code_e processor_in(cpu_s* const cpu) {
         log_print_error(error_code, "processor_in: ERROR during stack_push\n");
         return error_code;
     }
-
-    return SUCCESS;
-}
-
-
-error_code_e processor_pop(cpu_s* const cpu) {
-    error_code_e error_code = INIT_VALUE;
-    double value = NAN;
-
-    error_code = stack_verify(&cpu->stack);
-    if (error_code != SUCCESS) {
-        log_print_error(error_code, "processor_pop: ERROR during stack_verify\n");
-        return error_code;
-    }
-
-    if (cpu->stack.size < 1) {
-        log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
-        return INCORRECT_SIZE;
-    }
-
-    error_code = stack_pop(&cpu->stack, &value);
-    if (error_code != SUCCESS) {
-        log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
-    }
-
-    cpu->registers[(size_t)cpu->commands[cpu->pc].value] = value;
 
     return SUCCESS;
 }
@@ -719,7 +749,10 @@ error_code_e processor_jne(cpu_s* const cpu) {
 error_code_e processor_cal(cpu_s* const cpu) {
     assert(cpu != NULL);
 
-    stack_push(&cpu->ret_ln, cpu->pc + 1);
+    error_code_e error_code = stack_push(&cpu->ret_ln, cpu->pc + 1);
+    if (error_code != SUCCESS) {
+        return error_code;
+    }
     cpu->pc = (size_t)cpu->commands[cpu->pc].value - 1;
 
     return SUCCESS;
@@ -730,8 +763,20 @@ error_code_e processor_ret(cpu_s* const cpu) {
     assert(cpu != NULL);
     double value = 0;
 
-    stack_pop(&cpu->ret_ln, &value);
+    error_code_e error_code = stack_pop(&cpu->ret_ln, &value);
+    if (error_code != SUCCESS) {
+        return error_code;
+    }
     cpu->pc = (size_t)value - 1;
+
+    return SUCCESS;
+}
+
+
+error_code_e processor_dmp(cpu_s* const cpu) {
+    assert(cpu != NULL);
+
+    dump_ram(cpu);
 
     return SUCCESS;
 }
@@ -812,9 +857,9 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
 
     for (size_t ind = 0; ind < cpu->commands_size; ind++) {
         ASSERT_FOR_ARR(ind, cpu->commands_size);
-        fprintf(log_file, "\t\t[%zu] = %" SCNu8, ind, cpu->commands[ind].command);
+        fprintf(log_file, "\t\t[%zu] = %d%d%d %d", ind, cpu->commands[ind].command.konst, cpu->commands[ind].command.reg, cpu->commands[ind].command.ram, cpu->commands[ind].command.num);
 
-        if ((PUSH <= cpu->commands[ind].command && cpu->commands[ind].command <= POP) || (JMP <= cpu->commands[ind].command && cpu->commands[ind].command <= CAL)) {
+        if ((PUSH <= cpu->commands[ind].command.num && cpu->commands[ind].command.num <= POP) || (JMP <= cpu->commands[ind].command.num && cpu->commands[ind].command.num <= CAL)) {
             fprintf(log_file, " %lg", cpu->commands[ind].value);
         }
 
@@ -839,6 +884,19 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
     if (fclose(log_file) == EOF) {
         PRINT_ERROR(ERROR_DURING_CLOSE);
         abort();
+    }
+}
+
+
+void dump_ram(cpu_s* const cpu) {
+    const size_t hight  = 11;
+    const size_t weight = 11;
+
+    for (size_t hi = 0; hi < hight; hi++) {
+        for (size_t we = 0; we < weight; we++) {
+            printf("%d", cpu->ram[hi * weight + we]);
+        }
+        printf("\n");
     }
 }
 

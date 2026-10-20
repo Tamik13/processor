@@ -6,14 +6,14 @@
     pop rbx
     pop rax
 
-    pur rax
+    push rax
     push 0
     je  :ln
 
     cal :disc
     pop rdx
 
-    pur  rdx
+    push  rdx
     push 0
 
     jbe :upz
@@ -22,24 +22,24 @@
 
 
 :ln
-    pur rcx
+    push rcx
     push -1
     mul
-    pur rbx
+    push rbx
     div
     out
 
     hlc
 
 :disc
-    pur rbx
-    pur rbx
+    push rbx
+    push rbx
     mul
 
     push 4
     push -1
-    pur rax
-    pur rcx
+    push rax
+    push rcx
 
     mul
     mul
@@ -51,16 +51,16 @@
 
 
 :upz
-    pur rbx
+    push rbx
     push -1
     mul
 
-    pur rdx
+    push rdx
     sqr
 
     add
 
-    pur rax
+    push rax
     push 2
 
     mul
@@ -68,14 +68,14 @@
 
     out
 
-    pur rbx
+    push rbx
 
-    pur rdx
+    push rdx
     sqr
 
     add
 
-    pur rax
+    push rax
     push 2
 
     mul
