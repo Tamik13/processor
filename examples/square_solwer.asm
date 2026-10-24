@@ -22,6 +22,11 @@
 
 
 :ln
+    push 0
+    push rbx
+    je :zroots
+
+
     push rcx
     push -1
     mul
@@ -29,6 +34,7 @@
     div
     out
 
+    :zroots
     hlc
 
 :disc

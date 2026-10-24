@@ -29,8 +29,8 @@ struct asm_cmd_s {
     size_t        number;
 };
 
-error_code_e make_bytecode         (context_s* const context, const asm_cmd_s* const commands);
-error_code_e write_in_bytecode_file(const command_s  command, const double num);
+error_code_e make_bytecode         (context_s* const context, const asm_cmd_s*  const commands);
+error_code_e write_in_bytecode_file(const command_s command,  const double num, FILE* const bytecode_file);
 error_code_e clear_bytecode_file   ();
 
 error_code_e context_init     (context_s* const  context, const char* const input_file_name);
@@ -51,8 +51,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    start_logs();
-
     context_s    context = {};
     context_init(&context, argv[1]);
 
@@ -61,10 +59,12 @@ int main(int argc, char* argv[]) {
 
     qsort(commands, COMMANDS_CNT, sizeof(asm_cmd_s), (int(*) (const void *, const void *))cmd_cmp);
 
+    printf("compile start\n");
     error_code_e error_code = make_bytecode(&context, commands);
     if (error_code != SUCCESS) {
         return error_code;
     }
+    printf("compile end\n");
 
     return 0;
 }
@@ -91,10 +91,16 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
         return ERROR_DURING_OPEN;
     }
 
+    FILE* bytecode_file = fopen(bytecode_file_name, "ab");
 
+    if (bytecode_file == NULL) {
+        log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
+        return ERROR_DURING_OPEN;
+    }
 
     while (fscanf(input_file, "%s", command) == 1) {
         line++;
+
         if (command[0] == ':') continue;
 
         unsigned long hash = djb2_str_hash((const unsigned char*)command);
@@ -111,12 +117,23 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
             if (fscanf(input_file, "%lg", &val) == 1) {
                 cmd.konst = 1;
             } else if (fscanf(input_file, "[%29[^]]]", buff) > 0) {
-                val     = get_register_num(buff);
-                cmd.ram = 1;
 
-                if (fabs(val + 1) < EPSILON) {
-                    INCORRECT_REGISTER(buff, line)
-                    return INCORRECT_SIZE;
+                cmd.ram = 1;
+                char* endptr = NULL;
+                double ram_addr = strtod(buff, &endptr);
+
+                if (*endptr == '\0') {
+                    val       = ram_addr;
+                    cmd.konst = 1;
+
+                } else {
+                    val       = get_register_num(buff);
+                    cmd.reg   = 1;
+
+                    if (fabs(val + 1) < EPSILON) {
+                        INCORRECT_REGISTER(buff, line)
+                        return INCORRECT_SIZE;
+                    }
                 }
 
             } else if (fscanf(input_file, "%s", buff) > 0) {
@@ -148,7 +165,7 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
             val = NAN;
         }
 
-        error_code = write_in_bytecode_file(cmd, val);
+        error_code = write_in_bytecode_file(cmd, val, bytecode_file);
         if (error_code != SUCCESS) {
             fclose(input_file);
             log_print_error(error_code, "processor_execute_commands: ERROR during write push\n");
@@ -156,32 +173,12 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
         }
     }
 
-    if (fclose(input_file)) {
+    if (fclose(input_file) == EOF) {
         log_print_error(ERROR_DURING_CLOSE, "processor_execute_commands: ERROR during close\n");
         return ERROR_DURING_CLOSE;
     }
 
-    return SUCCESS;
-}
-
-
-error_code_e write_in_bytecode_file(const command_s command, const double num) {
-
-    int bytecode_file = open(bytecode_file_name, O_WRONLY | O_CREAT |  O_APPEND, S_IREAD | S_IWRITE);
-
-    if (bytecode_file == -1) {
-        log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
-        return ERROR_DURING_OPEN;
-    }
-
-    if (!isnan(num)) {
-        write(bytecode_file, &command, sizeof(command)); // TODO: check errors
-        write(bytecode_file, &num,     sizeof(num));
-    } else {
-        write(bytecode_file, &command, sizeof(command));
-    }
-
-    if (close(bytecode_file) == -1) {
+    if (fclose(bytecode_file) == EOF) {
         log_print_error(ERROR_DURING_CLOSE, "write_in_bytecode_file: ERROR during close bytecode_file\n");
         return ERROR_DURING_CLOSE;
     }
@@ -190,18 +187,30 @@ error_code_e write_in_bytecode_file(const command_s command, const double num) {
 }
 
 
+error_code_e write_in_bytecode_file(const command_s command, const double num, FILE* const bytecode_file) {
+    if (!isnan(num)) {
+        fwrite(&command, sizeof(command), 1, bytecode_file); // TODO: check errors
+        fwrite(&num,     sizeof(num),     1, bytecode_file);
+    } else {
+        fwrite(&command, sizeof(command), 1, bytecode_file);
+    }
+
+    return SUCCESS;
+}
+
+
 error_code_e clear_bytecode_file() {
-    int bytecode_file = open(bytecode_file_name, O_WRONLY | O_CREAT | O_TRUNC, S_IREAD | S_IWRITE);
+    FILE* bytecode_file = fopen(bytecode_file_name, "wb");
     const char header[] = "bin file with bytecode";
 
-    if (bytecode_file == -1) {
+    if (bytecode_file == NULL) {
         log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
         return ERROR_DURING_OPEN;
     }
 
-    write(bytecode_file, &header, sizeof(header));
+    fwrite(header, sizeof(header), 1, bytecode_file);
 
-    if (close(bytecode_file) == -1) {
+    if (fclose(bytecode_file) == EOF) {
         log_print_error(ERROR_DURING_CLOSE, "write_in_bytecode_file: ERROR during close bytecode_file\n");
         return ERROR_DURING_CLOSE;
     }

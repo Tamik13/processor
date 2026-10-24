@@ -1,0 +1,10 @@
+clear
+
+clang++ /Users/tamerlannagaev/prodva/PROCESSOR/src/debugging.cpp /Users/tamerlannagaev/prodva/PROCESSOR/src/assembler.cpp -O3 -DNDEBUG -flto -march=native -o asm
+./asm /Users/tamerlannagaev/prodva/PROCESSOR/examples/bad_apple/bad_apple.asm
+
+clang++  /Users/tamerlannagaev/prodva/PROCESSOR/src/debugging.cpp /Users/tamerlannagaev/prodva/PROCESSOR/src/stack.cpp /Users/tamerlannagaev/prodva/PROCESSOR/src/processor.cpp -O3 -DNDEBUG -flto -march=native -o processor -I"$(brew --prefix raylib)/include" \
+  -L"$(brew --prefix raylib)/lib" \
+  -lraylib \
+  -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+./processor

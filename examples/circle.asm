@@ -7,37 +7,33 @@
         :s_cycle
 
             push rax
-            push -5
+            push -36
             add
             push rax
-            push -5
+            push -36
             add
             mul
 
             push rbx
-            push -5
+            push -27
             add
             push rbx
-            push -5
+            push -27
             add
             mul
 
             add
 
-            push 16
+            push 100
 
-            jae :not_circle
+            jb :not_circle
 
             push rax
-            push 11
+            push 72
             mul
             push rbx
             add
             pop rcx
-
-            push rcx
-
-            pop 1
 
             push 1
             pop [rcx]
@@ -49,7 +45,7 @@
             add
             pop rax
 
-            push 11
+            push 72
             push rax
             jb :s_cycle
 
@@ -61,7 +57,7 @@
         add
         pop rbx
 
-        push 11
+        push 54
         push rbx
         jb :f_cycle
 

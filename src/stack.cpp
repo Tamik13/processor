@@ -164,7 +164,7 @@ error_code_e stack_push(stack_s* const stack, const stack_element value) {
         return error_code;
     }
 
-    log_print("stack push\n");
+    ON_DBG(log_print("stack push\n");)
 
     if (stack->size == stack->capacity) {
         error_code = stack_recalloc(stack, stack->size * HIGHER_COEF);
@@ -236,7 +236,7 @@ error_code_e stack_pop(stack_s* const stack, stack_element* const value) {
         return NULL_PARAM;
     }
 
-    log_print("stack pop\n");
+    ON_DBG(log_print("stack pop\n");)
 
     if (stack->size <= stack->capacity / LOWER_COEF && stack->capacity / LOWER_COEF ) {
         error_code = stack_recalloc(stack, stack->capacity / LOWER_COEF);

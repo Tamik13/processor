@@ -9,7 +9,10 @@
 const double EPSILON         = 1e-6;
 const size_t COUNT_REGISTERS = 8;
 const size_t HEADER_SIZE     = 23;
-const size_t RAM_SIZE        = 121;
+const size_t WEIGHT_WIND     = 720;
+const size_t HEIGHT_WIND     = 540;
+const size_t RAM_SIZE        = WEIGHT_WIND * HEIGHT_WIND;
+
 
 struct cmd_val_s {
     command_s command;
@@ -24,6 +27,8 @@ struct cpu_s {
     cmd_val_s* commands;
     size_t     commands_size;
     unsigned char* ram;
+    Texture2D      screen_texture;
+    Color*         pixel_buffer;
 };
 
 typedef error_code_e(cmd_fun_t)(cpu_s* const);
@@ -74,8 +79,6 @@ int main() {
     cpu_s        cpu        = {};
     error_code_e error_code = INIT_VALUE;
 
-    start_logs();
-
     error_code = processor_start(&cpu);
     if (error_code != SUCCESS) {
         PRINT_ERROR(error_code);
@@ -104,6 +107,7 @@ error_code_e processor_start(cpu_s* const cpu) {
 
     STACK_INIT(&cpu->stack,  5);
     STACK_INIT(&cpu->ret_ln, 5);
+
     cpu->registers     = (double*)calloc(COUNT_REGISTERS, sizeof(double));
     cpu->pc            = 0;
     cpu->commands_size = 0;
@@ -119,6 +123,14 @@ error_code_e processor_start(cpu_s* const cpu) {
         log_print_error(ALLOCATION_ERROR, "processor_start: ERROR during calloc ram\n");
         return ALLOCATION_ERROR;
     }
+
+    SetTraceLogLevel(LOG_ERROR);
+    InitWindow      (WEIGHT_WIND, HEIGHT_WIND, "CPU");
+    SetTargetFPS    (30);
+    Image img           = GenImageColor(WEIGHT_WIND, HEIGHT_WIND, RAYWHITE);
+    cpu->screen_texture = LoadTextureFromImage(img);
+    UnloadImage(img);
+    cpu->pixel_buffer   = (Color*)calloc(RAM_SIZE, sizeof(Color));
 
     return SUCCESS;
 }
@@ -142,32 +154,26 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         return ALLOCATION_ERROR;
     }
 
-    cpu->commands = (cmd_val_s*)calloc(file_size, sizeof(cmd_val_s));
+    cpu->commands = (cmd_val_s*)calloc(file_size, sizeof(cmd_val_s) / 4);
 
     if (cpu->commands == NULL) {
         log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during allocation\n");
         return ALLOCATION_ERROR;
     }
 
-    int bytecode_file = open(bytecode_file_name, O_RDONLY);
-    if (bytecode_file == -1) {
+    FILE* bytecode_file = fopen(bytecode_file_name, "rb");
+    if (bytecode_file == NULL) {
         log_print_error(ERROR_DURING_OPEN, "processor_load_program: ERROR during open\n");
         return ERROR_DURING_OPEN;
     }
 
-    ssize_t bytes_read = read(bytecode_file, buffer, HEADER_SIZE);
+    fread(buffer, HEADER_SIZE, 1, bytecode_file);
 
-    while (cpu->commands_size < file_size && (bytes_read = read(bytecode_file, &command, sizeof(command))) ) {
-        if (bytes_read == -1) {
-            log_print_error(ERROR_DURING_READ, "processor_load_program: ERROR during read\n");
-            return ERROR_DURING_READ;
-        }
-
-
+    while (cpu->commands_size < file_size && fread(&command, sizeof(command), 1, bytecode_file) == 1) {
         cpu->commands[cpu->commands_size].command = command;
 
         if ((PUSH <= command.num && command.num <= POP) || (JMP <= command.num && command.num <= CAL)) {
-            if (read(bytecode_file, &value, sizeof(value)) <= 0) {
+            if (fread(&value, sizeof(value), 1, bytecode_file) != 1) {
                 PRINT_ERROR(INCORRECT_PARAM);
                 return INCORRECT_PARAM;
             }
@@ -177,7 +183,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         cpu->commands_size++;
     }
 
-    if (close(bytecode_file) == -1) {
+    if (fclose(bytecode_file) == EOF) {
         log_print_error(ERROR_DURING_CLOSE, "processor_load_program: ERROR during close\n");
         return ERROR_DURING_CLOSE;
     }
@@ -198,7 +204,6 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
 
     for (;cpu->pc < cpu->commands_size; cpu->pc++) {
-        log_dump_cpu(cpu, "");
 
         if (cpu->commands[cpu->pc].command.num == HLC) {
             break;
@@ -233,7 +238,7 @@ error_code_e processor_push(cpu_s* const cpu) {
     }
 
     if (cpu->commands[cpu->pc].command.ram) {
-        value += cpu->ram[(size_t)cpu->commands[cpu->pc].value];
+        value += cpu->ram[(size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value]];
     }
 
     error_code = stack_push(&cpu->stack, value);
@@ -256,7 +261,25 @@ error_code_e processor_pop(cpu_s* const cpu) {
         return error_code;
     }
 
-    if (cpu->commands[cpu->pc].command.konst) {
+    if (cpu->commands[cpu->pc].command.ram) {
+        if (cpu->stack.size < 1) {
+            return INCORRECT_SIZE;
+        }
+
+        stack_pop(&cpu->stack, &value);
+        size_t addr = 0;
+
+        if (cpu->commands[cpu->pc].command.konst) {
+            addr = (size_t)cpu->commands[cpu->pc].value;
+
+        } else if (cpu->commands[cpu->pc].command.reg) {
+            addr = (size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value];
+        }
+
+        cpu->ram[addr] = (unsigned char)value;
+
+    } else if (cpu->commands[cpu->pc].command.konst) {
+
         if (cpu->stack.size < 1) {
             log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
             return INCORRECT_SIZE;
@@ -266,9 +289,7 @@ error_code_e processor_pop(cpu_s* const cpu) {
         if (error_code != SUCCESS) {
             log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
         }
-    }
-
-    if (cpu->commands[cpu->pc].command.reg) {
+    } else if (cpu->commands[cpu->pc].command.reg) {
         if (cpu->stack.size < 1) {
             log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
             return INCORRECT_SIZE;
@@ -279,20 +300,6 @@ error_code_e processor_pop(cpu_s* const cpu) {
             log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
         }
         cpu->registers[(size_t)cpu->commands[cpu->pc].value] = value;
-    }
-
-    if (cpu->commands[cpu->pc].command.ram) {
-
-        if (cpu->stack.size < 1) {
-            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
-            return INCORRECT_SIZE;
-        }
-
-        error_code = stack_pop(&cpu->stack, &value);
-        if (error_code != SUCCESS) {
-            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
-        }
-        cpu->ram[(size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value]] = (unsigned char)value;
     }
 
     return SUCCESS;
@@ -791,6 +798,8 @@ error_code_e processor_hlc(cpu_s* const cpu) {
         return error_code;
     }
 
+    CloseWindow();
+
     return SUCCESS;
 }
 
@@ -819,6 +828,7 @@ error_code_e processor_destroy(cpu_s* const cpu) {
 
     free(cpu->registers);
     free(cpu->commands);
+    free(cpu->ram);
     cpu->pc            = 0;
     cpu->commands_size = 0;
 
@@ -889,15 +899,15 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
 
 
 void dump_ram(cpu_s* const cpu) {
-    const size_t hight  = 11;
-    const size_t weight = 11;
-
-    for (size_t hi = 0; hi < hight; hi++) {
-        for (size_t we = 0; we < weight; we++) {
-            printf("%d", cpu->ram[hi * weight + we]);
-        }
-        printf("\n");
+    for (size_t i = 0; i < RAM_SIZE; i++) {
+        cpu->pixel_buffer[i] = cpu->ram[i] ? RAYWHITE : BLACK;
     }
+
+    UpdateTexture(cpu->screen_texture, cpu->pixel_buffer);
+
+    BeginDrawing();
+    DrawTexture(cpu->screen_texture, 0, 0, WHITE);
+    EndDrawing();
 }
 
 
