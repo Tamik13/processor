@@ -3,7 +3,8 @@ bytecode
 commands
 asm
 log.txt
-/Users/tamerlannagaev/prodva/PROCESSOR/examples/bad_apple/bad_apple.asm
+bad_apple.asm
+bytecode
 
 # Prerequisites
 *.d
