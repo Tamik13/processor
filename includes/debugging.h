@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #define PRINT_ERROR(error)    \
     fprintf(stderr, "%s:%d " COLOR_TEXT("ERROR CODE: ", RED_C) "%s   " COLOR_TEXT("ERRNO: ", RED_C) "%s  %s\n",  __FILE__, __LINE__, my_str_error(error), strerror(errno), __FUNCTION__);
@@ -109,6 +110,7 @@ void $print_intptr_arr(const int* const  int_array[], const size_t size);
 const char* my_str_error(const error_code_e error_code);
 
 error_code_e is_readble_ptr(const void* ptr);
+error_code_e stat_get_size (const char*  const file_name, size_t* const file_size);
 
 void _$(int    num);
 void _$(double num);

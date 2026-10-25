@@ -7,29 +7,29 @@
         :s_cycle
 
             push rax
-            push -36
+            push -270
             add
             push rax
-            push -36
+            push -270
             add
             mul
 
             push rbx
-            push -27
+            push -360
             add
             push rbx
-            push -27
+            push -360
             add
             mul
 
             add
 
-            push 100
+            push 50000
 
             jb :not_circle
 
             push rax
-            push 72
+            push 720
             mul
             push rbx
             add
@@ -45,7 +45,7 @@
             add
             pop rax
 
-            push 72
+            push 540
             push rax
             jb :s_cycle
 
@@ -57,10 +57,11 @@
         add
         pop rbx
 
-        push 54
+        push 720
         push rbx
         jb :f_cycle
 
     dmp
+    wait
 
     hlc

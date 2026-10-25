@@ -85,14 +85,12 @@ error_code_e make_bytecode(context_s* context, const asm_cmd_s* const commands) 
     }
 
     FILE* input_file = fopen(context->input_file_name, "r");
-
     if (input_file == NULL) {
         log_print_error(ERROR_DURING_OPEN, "make_bytecode: ERROR during open\n");
         return ERROR_DURING_OPEN;
     }
 
     FILE* bytecode_file = fopen(bytecode_file_name, "ab");
-
     if (bytecode_file == NULL) {
         log_print_error(ERROR_DURING_OPEN, "write_in_bytecode_file: ERROR during open bytecode_file\n");
         return ERROR_DURING_OPEN;
@@ -351,7 +349,7 @@ void comands_init(asm_cmd_s* const  commands) {
     const char* const names[COMMANDS_CNT] =  {"nac", "push",
     "pop", "add", "mul", "div", "out", "in", "sin",
     "cos", "sqr", "jmp", "ja",  "jb",  "je", "jae",
-    "jbe", "jne", "cal", "ret", "dmp", "hlc"};
+    "jbe", "jne", "cal", "ret", "dmp", "wait", "hlc"};
 
     for (size_t cmd_num = 0; cmd_num < COMMANDS_CNT; cmd_num++) {
         commands[cmd_num].name   = names[cmd_num];

@@ -2,7 +2,6 @@
 #include "../includes/commands.h"
 #include <math.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include "raylib.h"
 
@@ -26,9 +25,9 @@ struct cpu_s {
     size_t     pc;
     cmd_val_s* commands;
     size_t     commands_size;
-    unsigned char* ram;
-    Texture2D      screen_texture;
-    Color*         pixel_buffer;
+    double*    ram;
+    Texture2D  screen_texture;
+    Color*     pixel_buffer;
 };
 
 typedef error_code_e(cmd_fun_t)(cpu_s* const);
@@ -61,19 +60,20 @@ error_code_e processor_cal             (cpu_s* const cpu);
 error_code_e processor_ret             (cpu_s* const cpu);
 error_code_e processor_dmp             (cpu_s* const cpu);
 error_code_e processor_hlc             (cpu_s* const cpu);
+error_code_e processor_wait            (cpu_s* const cpu);
 error_code_e incorrect_cmd             (cpu_s* const cpu);
 
 void         log_dump_cpu     (cpu_s* const cpu,       const char* const reason);
 void         dump_ram         (cpu_s* const cpu);
 error_code_e processor_destroy(cpu_s* const cpu);
-error_code_e stat_get_size    (const char*  const file_name, size_t* const file_size);
+double*      get_value        (cpu_s* const cpu);
 
 const cmd_to_fun_s cmd_funcs[] = {{incorrect_cmd}, {processor_push}, {processor_pop},
-                                  {processor_add}, {processor_mul},  {processor_div},      {processor_out},
-                                  {processor_in},  {processor_sin},  {processor_cos},      {processor_sqrt},
-                                  {processor_jmp}, {processor_ja},   {processor_jb},       {processor_je},
-                                  {processor_jae}, {processor_jbe},  {processor_jne},      {processor_cal},
-                                  {processor_ret}, {processor_dmp},  {processor_hlc}};
+                                  {processor_add}, {processor_mul},  {processor_div},  {processor_out},
+                                  {processor_in},  {processor_sin},  {processor_cos},  {processor_sqrt},
+                                  {processor_jmp}, {processor_ja},   {processor_jb},   {processor_je},
+                                  {processor_jae}, {processor_jbe},  {processor_jne},  {processor_cal},
+                                  {processor_ret}, {processor_dmp},  {processor_wait}, {processor_hlc}};
 
 int main() {
     cpu_s        cpu        = {};
@@ -112,7 +112,7 @@ error_code_e processor_start(cpu_s* const cpu) {
     cpu->pc            = 0;
     cpu->commands_size = 0;
     cpu->commands      = NULL;
-    cpu->ram           = (unsigned char*)calloc(RAM_SIZE, sizeof(unsigned char));
+    cpu->ram           = (double*)calloc(RAM_SIZE, sizeof(double));
 
     if (cpu->registers == NULL) {
         log_print_error(ALLOCATION_ERROR, "processor_start: ERROR during calloc registers\n");
@@ -154,7 +154,7 @@ error_code_e processor_load_program(cpu_s* const cpu, const char* const bytecode
         return ALLOCATION_ERROR;
     }
 
-    cpu->commands = (cmd_val_s*)calloc(file_size, sizeof(cmd_val_s) / 4);
+    cpu->commands = (cmd_val_s*)calloc(file_size, sizeof(cmd_val_s));
 
     if (cpu->commands == NULL) {
         log_print_error(ALLOCATION_ERROR, "processor_load_program: ERROR during allocation\n");
@@ -222,26 +222,13 @@ error_code_e processor_execute_commands(cpu_s* const cpu) {
 
 error_code_e processor_push(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
-    double       value      = 0;
+    double*      addr       = get_value(cpu);
 
-    if (cpu == NULL) {
-        log_print_error(NULL_PARAM, "add: ERROR null stack ptr\n");
-        return NULL_PARAM;
+    if (addr == NULL) {
+        return INCORRECT_PARAM;
     }
 
-    if (cpu->commands[cpu->pc].command.konst) {
-        value += cpu->commands[cpu->pc].value;
-    }
-
-    if (cpu->commands[cpu->pc].command.reg) {
-        value += cpu->registers[(size_t)cpu->commands[cpu->pc].value];
-    }
-
-    if (cpu->commands[cpu->pc].command.ram) {
-        value += cpu->ram[(size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value]];
-    }
-
-    error_code = stack_push(&cpu->stack, value);
+    error_code = stack_push(&cpu->stack, *addr);
     if (error_code != SUCCESS) {
         log_print_error(error_code, "processor_push: ERROR during stack_push\n");
         return error_code;
@@ -253,53 +240,16 @@ error_code_e processor_push(cpu_s* const cpu) {
 
 error_code_e processor_pop(cpu_s* const cpu) {
     error_code_e error_code = INIT_VALUE;
-    double value = NAN;
+    double*      addr       = get_value(cpu);
 
-    error_code = stack_verify(&cpu->stack);
-    if (error_code != SUCCESS) {
-        log_print_error(error_code, "processor_pop: ERROR during stack_verify\n");
-        return error_code;
+    if (addr == NULL) {
+        return INCORRECT_PARAM;
     }
 
-    if (cpu->commands[cpu->pc].command.ram) {
-        if (cpu->stack.size < 1) {
-            return INCORRECT_SIZE;
-        }
-
-        stack_pop(&cpu->stack, &value);
-        size_t addr = 0;
-
-        if (cpu->commands[cpu->pc].command.konst) {
-            addr = (size_t)cpu->commands[cpu->pc].value;
-
-        } else if (cpu->commands[cpu->pc].command.reg) {
-            addr = (size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value];
-        }
-
-        cpu->ram[addr] = (unsigned char)value;
-
-    } else if (cpu->commands[cpu->pc].command.konst) {
-
-        if (cpu->stack.size < 1) {
-            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
-            return INCORRECT_SIZE;
-        }
-
-        error_code = stack_pop(&cpu->stack, &value);
-        if (error_code != SUCCESS) {
-            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
-        }
-    } else if (cpu->commands[cpu->pc].command.reg) {
-        if (cpu->stack.size < 1) {
-            log_print_error(INCORRECT_SIZE, "processor_pop: ERROR stack->size < 2\n");
-            return INCORRECT_SIZE;
-        }
-
-        error_code = stack_pop(&cpu->stack, &value);
-        if (error_code != SUCCESS) {
-            log_print_error(error_code, "processor_pop: ERROR during stack_pop\n");
-        }
-        cpu->registers[(size_t)cpu->commands[cpu->pc].value] = value;
+    error_code = stack_pop(&cpu->stack, addr);
+    if (error_code != SUCCESS) {
+        log_print_error(error_code, "processor_push: ERROR during stack_push\n");
+        return error_code;
     }
 
     return SUCCESS;
@@ -789,6 +739,21 @@ error_code_e processor_dmp(cpu_s* const cpu) {
 }
 
 
+error_code_e processor_wait(cpu_s* const cpu) {
+
+
+    while (!WindowShouldClose()) {
+        if (IsKeyPressed(KEY_SPACE)) {
+            break;
+        }
+    }
+
+    CloseWindow();
+
+    return SUCCESS;
+}
+
+
 error_code_e processor_hlc(cpu_s* const cpu) {
     assert(cpu != NULL);
 
@@ -833,6 +798,33 @@ error_code_e processor_destroy(cpu_s* const cpu) {
     cpu->commands_size = 0;
 
     return SUCCESS;
+}
+
+
+double* get_value(cpu_s* const cpu) {
+    if (cpu->commands[cpu->pc].command.ram) {
+
+        if (cpu->commands[cpu->pc].command.konst) {
+            return &cpu->ram[(size_t)cpu->commands[cpu->pc].value];
+
+        } else if (cpu->commands[cpu->pc].command.reg) {
+            return &cpu->ram[(size_t)cpu->registers[(size_t)cpu->commands[cpu->pc].value]];
+        } else {
+            return NULL;
+        }
+
+    } else if (cpu->commands[cpu->pc].command.konst) {
+        if (cpu->commands[cpu->pc].command.num == POP) {
+            return NULL;
+        }
+
+        return &cpu->commands[cpu->pc].value;
+
+    } else if (cpu->commands[cpu->pc].command.reg) {
+        return &cpu->registers[(size_t)cpu->commands[cpu->pc].value];
+    }
+
+    return NULL;
 }
 
 
@@ -900,7 +892,7 @@ void log_dump_cpu(cpu_s* const cpu, const char* const reason) {
 
 void dump_ram(cpu_s* const cpu) {
     for (size_t i = 0; i < RAM_SIZE; i++) {
-        cpu->pixel_buffer[i] = cpu->ram[i] ? RAYWHITE : BLACK;
+        cpu->pixel_buffer[i] = fabs(cpu->ram[i] - 1) < EPSILON ? RAYWHITE : BLACK;
     }
 
     UpdateTexture(cpu->screen_texture, cpu->pixel_buffer);
@@ -910,16 +902,3 @@ void dump_ram(cpu_s* const cpu) {
     EndDrawing();
 }
 
-
-error_code_e stat_get_size(const char* const file_name, size_t* const file_size) {
-    struct stat buff = {};
-
-    if (stat(file_name, &buff) == -1) {
-        log_print_error(STAT_READ_ERROR, "STAT\n");
-        return STAT_READ_ERROR;
-    }
-
-    *file_size = (size_t)buff.st_size;
-
-    return SUCCESS;
-}

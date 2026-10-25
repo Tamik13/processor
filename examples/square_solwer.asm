@@ -18,23 +18,30 @@
 
     jbe :upz
 
-    hlc
+    push 0
+    out
 
+    hlc
 
 :ln
     push 0
-    push rbx
-    je :zroots
+    push rcx
+    je :inf_roots
 
+    push 0
+    push rbx
+    je :z_roots
+
+    push 1
+    out
 
     push rcx
     push -1
     mul
     push rbx
     div
-    out
 
-    :zroots
+    out
     hlc
 
 :disc
@@ -54,8 +61,6 @@
     add
     ret
 
-
-
 :upz
     push rbx
     push -1
@@ -72,7 +77,18 @@
     mul
     div
 
+
+    push rdx
+    push 0
+
+
+    je :one_root
+
     out
+
+    push 2
+    out
+
 
     push rbx
 
@@ -91,7 +107,23 @@
     mul
 
     out
+
     hlc
 
+    :one_root
+    push 1
+    out
+    pop rax
+    out
 
+    hlc
 
+:inf_roots
+    push 67
+    out
+    hlc
+
+:z_roots
+    push 0
+    out
+    hlc

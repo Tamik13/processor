@@ -10,6 +10,8 @@
 
     cal :fact
 
+    push
+
     hlc
 
 :fact

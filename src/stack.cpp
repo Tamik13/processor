@@ -365,7 +365,6 @@ error_code_e stack_recalloc(stack_s* const stack, const size_t new_capacity) {
 }
 
 
-
 void print_stack(const stack_s* const stack) {
     assert(stack != NULL);
 
@@ -430,7 +429,6 @@ bool is_stack_init(const stack_s* const stack) {
 
     return false;
 }
-
 
 
 void log_dump_stack(const stack_s* const stack, const char* const reason) {
@@ -501,3 +499,6 @@ void log_dump_stack(const stack_s* const stack, const char* const reason) {
         abort();
     }
 }
+
+
+

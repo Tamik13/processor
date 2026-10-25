@@ -249,6 +249,18 @@ error_code_e is_readble_ptr(const void* ptr) {
     return UNEXPECTED_ERROR;
 }
 
+error_code_e stat_get_size(const char* const file_name, size_t* const file_size) {
+    struct stat buff = {};
+
+    if (stat(file_name, &buff) == -1) {
+        log_print_error(STAT_READ_ERROR, "STAT\n");
+        return STAT_READ_ERROR;
+    }
+
+    *file_size = (size_t)buff.st_size;
+
+    return SUCCESS;
+}
 
 void _$(int       num)         {$int(num);}
 void _$(double    num)         {$double(num);}

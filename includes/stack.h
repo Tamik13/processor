@@ -63,3 +63,4 @@ void print_stack         (const stack_s* const stack);
 bool is_stack_init       (const stack_s* const stack);
 
 void log_dump_stack(const stack_s* const stack, const char* const reason);
+

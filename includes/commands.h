@@ -20,7 +20,8 @@ enum cmd_num_e {
     CAL  = 18,
     RET  = 19,
     DMP  = 20,
-    HLC  = 21
+    WAIT = 21,
+    HLC  = 22
 };
 
 struct command_s {
@@ -30,4 +31,4 @@ struct command_s {
     unsigned char ram:1;
 };
 
-#define COMMANDS_CNT 22
+#define COMMANDS_CNT 23
