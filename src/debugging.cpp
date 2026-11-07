@@ -214,8 +214,6 @@ error_code_e is_readble_ptr(const void* ptr) {
 
     int saved_errno = errno;
 
-
-
     if (close(file_descriptor[0])) {
         log_print_error(ERROR_DURING_CLOSE, "is_readble: ERROR FILE_DESCRIPTOR[0] CANT BE CLOSE\n");
     }
@@ -224,17 +222,11 @@ error_code_e is_readble_ptr(const void* ptr) {
         log_print_error(ERROR_DURING_CLOSE, "is_readble: ERROR FILE_DESCRIPTOR[1] CANT BE CLOSE\n");
     }
 
-
-
     if (is_file_open == 1) {
         return SUCCESS;
     }
 
-
-
     errno = saved_errno;
-
-
 
     if (is_file_open == -1 && saved_errno == EFAULT) {
 
@@ -261,6 +253,20 @@ error_code_e stat_get_size(const char* const file_name, size_t* const file_size)
 
     return SUCCESS;
 }
+
+error_code_e stat_get_blksize(const char* const file_name, size_t* const file_size) {
+    struct stat buff = {};
+
+    if (stat(file_name, &buff) == -1) {
+        log_print_error(STAT_READ_ERROR, "STAT\n");
+        return STAT_READ_ERROR;
+    }
+
+    *file_size = (size_t)buff.st_blksize;
+
+    return SUCCESS;
+}
+
 
 void _$(int       num)         {$int(num);}
 void _$(double    num)         {$double(num);}

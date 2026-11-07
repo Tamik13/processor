@@ -14,6 +14,7 @@
             add
             mul
 
+
             push rbx
             push -360
             add
@@ -26,7 +27,7 @@
 
             push 50000
 
-            jb :not_circle
+            ja :not_circle
 
             push rax
             push 720

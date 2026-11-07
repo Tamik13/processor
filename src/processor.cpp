@@ -671,6 +671,7 @@ error_code_e processor_jbe(cpu_s* const cpu) {
 }
 
 
+
 error_code_e processor_jne(cpu_s* const cpu) {
     assert(cpu != NULL);
     error_code_e error_code = INIT_VALUE;
