@@ -11,49 +11,7 @@ void start_logs(void) {
 }
 
 
-void log_print(const char* const message) {
-    assert(message != NULL);
 
-    FILE* log_file = fopen(LOG_FILE_NAME, "a");
-
-    if (log_file == NULL) {
-        PRINT_ERROR(ERROR_DURING_OPEN);
-        abort();
-    }
-
-    time_t date = 0;
-    date = time(NULL);
-
-    fprintf(log_file, "\nFUNCTION: log_print DATE:%s", ctime(&date));
-    fputs  (message,  log_file);
-
-    if (fclose(log_file) == EOF) {
-        PRINT_ERROR(ERROR_DURING_CLOSE);
-        abort();
-    }
-}
-
-
-void log_print_error(error_code_e error_code, const char* const message) {
-    FILE* log_file = fopen(LOG_FILE_NAME, "a");
-
-    if (log_file == NULL) {
-        PRINT_ERROR(ERROR_DURING_OPEN);
-        abort();
-    }
-
-    time_t date = 0;
-    date = time(NULL);
-
-    fprintf(log_file, "\nFUNCTION: log_print_error DATE:%s",   ctime(&date));
-    fprintf(log_file, "%s"                                 ,   message);
-    fprintf(log_file, "ERROR error_code: %s errno_code: %s\n", my_str_error(error_code), strerror(errno));
-
-    if (fclose(log_file) == EOF) {
-        PRINT_ERROR(ERROR_DURING_CLOSE);
-        abort();
-    }
-}
 
 
 unsigned long djb2_hash(const unsigned char* str, const size_t size) {
